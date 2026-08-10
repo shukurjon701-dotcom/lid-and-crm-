@@ -1,0 +1,342 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Дизайн-система.
+
+   Тон задан референсом (app.sotai.uz): белое полотно, крупный радиус,
+   яркий синий акцент и Manrope. Границы блоков держат тонкие светлые линии,
+   тень появляется только при наведении.
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Полотно — не плоская заливка, а мягкий градиент, как в референсе */
+  --canvas-gradient: radial-gradient(140% 120% at 18% -10%, #fbfbfd 0%, #f3f3f6 46%, #ebebf0 100%);
+  --canvas: #f5f5f7;
+  --surface: #ffffff;         /* карточки */
+  --surface-sunken: #f4f4f6;  /* дорожки, поля ввода, «утопленное» */
+  --surface-muted: #fafafa;   /* строка при наведении */
+
+  /* Границы: на белом фоне именно они держат структуру */
+  --line: #eaeaee;
+  --line-strong: #d9d9de;
+
+  /* Текст */
+  --ink: #0a0a0a;
+  --ink-2: #52525b;
+  --ink-3: #8b8b93;
+
+  /* Акцент */
+  --accent: #2d6bf7;
+  --accent-hover: #1d56db;
+  --accent-soft: #e4edff;
+  --accent-ink: #ffffff;
+
+  /* Смысловые цвета: всегда идут в паре с подписью и точкой,
+     поэтому различимы и для тех, кто не отличает красный от зелёного. */
+  --success: #15803d;
+  --success-soft: #e9f6ed;
+  --warning: #f59e0b;
+  --warning-soft: #fdf3e2;
+  --danger: #b91c1c;
+  --danger-soft: #fbeaea;
+  --info: #0369a1;
+  --info-soft: #e6f2fa;
+
+  /* Ряды графиков */
+  --s1: #2d6bf7;
+  --s2: #7c3aed;
+  --s3: #0d9488;
+  --s4: #f59e0b;
+  --s5: #db2777;
+
+  /* Боковая панель — светлая: тёмный рельс и есть главный признак «старого» */
+  --nav: #ffffff;
+  --nav-ink: #52525b;
+  --nav-ink-strong: #0a0a0a;
+  --nav-active-bg: var(--accent-soft);
+  --nav-active-ink: var(--accent);
+
+  /* Тени — многослойные и мягкие */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, .07);
+  --shadow-lg: 0 14px 38px rgba(15, 23, 42, .11);
+
+  /* Температура клиента — цветные плашки со своей рамкой и точкой */
+  --hot: #f5333f;      --hot-bg: #fbedec;   --hot-line: #f0d3d1;
+  --warm: #f97316;     --warm-bg: #faf4e9;  --warm-line: #ecddbf;
+  --cold: #3b82f6;     --cold-bg: #eef3fa;  --cold-line: #d3e0f0;
+  --dead: #94a3b8;     --dead-bg: #f4f5f7;  --dead-line: #e3e6eb;
+  --fresh: #16a34a;    --fresh-bg: #e9f6ed; --fresh-line: #cfe9d8;
+
+  /* Внимание и риск — тёплый янтарь */
+  --risk: #ffb661;
+  --risk-bg: rgba(249, 115, 22, .10);
+  --risk-line: rgba(249, 115, 22, .30);
+
+  /* Источники заявок — узнаваемые цвета площадок */
+  --src-instagram: #e1306c;
+  --src-telegram: #229ed9;
+  --src-facebook: #1877f2;
+  --src-web: #60a5fa;
+  --src-call: #10b981;
+  --src-other: #94a3b8;
+
+  /* Главная кнопка — градиент и цветная тень */
+  --btn-gradient: linear-gradient(180deg, #4d8dff, #2d6bf7);
+  --btn-shadow: 0 4px 10px -2px rgba(37, 99, 235, .45), 0 2px 4px rgba(37, 99, 235, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .4);
+
+  /* Тёмная «стеклянная» карточка поверх светлой страницы */
+  --glass: linear-gradient(155deg, rgba(46, 46, 54, .96), rgba(20, 20, 24, .98));
+  --glass-line: rgba(255, 255, 255, .13);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 18px 44px -10px rgba(0, 0, 0, .5),
+    0 6px 16px rgba(0, 0, 0, .24);
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, .05), 0 2px 6px rgba(15, 23, 42, .05),
+    0 0 0 1px rgba(15, 23, 42, .04);
+
+  --radius-card: 18px;
+  --radius-control: 11px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: #0a0a0a;
+    --surface: #141417;
+    --surface-sunken: #1c1c1f;
+    --surface-muted: #1c1c1f;
+
+    --line: #26262b;
+    --line-strong: #3a3a42;
+
+    --ink: #ededf0;
+    --ink-2: #a1a1aa;
+    --ink-3: #7c7c85;
+
+    --accent: #5b8dff;
+    --accent-hover: #7ba2ff;
+    --accent-soft: #16233f;
+    --accent-ink: #06122b;
+
+    --success: #4ade80;
+    --success-soft: #10251a;
+    --warning: #fbbf24;
+    --warning-soft: #2a2007;
+    --danger: #fb7185;
+    --danger-soft: #2c1116;
+    --info: #38bdf8;
+    --info-soft: #0a2130;
+
+    --s1: #5b8dff;
+    --s2: #a78bfa;
+    --s3: #2dd4bf;
+    --s4: #fbbf24;
+    --s5: #f472b6;
+
+    --nav: #101013;
+    --nav-ink: #a1a1aa;
+    --nav-ink-strong: #ffffff;
+    --nav-active-bg: #1b2740;
+    --nav-active-ink: #7ba2ff;
+
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, .04), 0 1px 2px rgba(0, 0, 0, .5);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, .6), 0 4px 8px rgba(0, 0, 0, .4);
+
+    --hot: #ff6b61;   --hot-bg: rgba(245, 51, 63, .14);   --hot-line: rgba(245, 51, 63, .32);
+    --warm: #ffb661;  --warm-bg: rgba(249, 115, 22, .14); --warm-line: rgba(249, 115, 22, .3);
+    --cold: #60a5fa;  --cold-bg: rgba(59, 130, 246, .14); --cold-line: rgba(59, 130, 246, .3);
+    --dead: #94a3b8;  --dead-bg: rgba(148, 163, 184, .12);--dead-line: rgba(148, 163, 184, .26);
+    --fresh: #4ade80; --fresh-bg: rgba(22, 163, 74, .16); --fresh-line: rgba(22, 163, 74, .32);
+    --canvas-gradient: radial-gradient(140% 120% at 18% -10%, #16161a 0%, #101013 46%, #0a0a0a 100%);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .05);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0a0a0a;
+  --surface: #141417;
+  --surface-sunken: #1c1c1f;
+  --surface-muted: #1c1c1f;
+
+  --line: #26262b;
+  --line-strong: #3a3a42;
+
+  --ink: #ededf0;
+  --ink-2: #a1a1aa;
+  --ink-3: #7c7c85;
+
+  --accent: #5b8dff;
+  --accent-hover: #7ba2ff;
+  --accent-soft: #16233f;
+  --accent-ink: #06122b;
+
+  --success: #4ade80;
+  --success-soft: #10251a;
+  --warning: #fbbf24;
+  --warning-soft: #2a2007;
+  --danger: #fb7185;
+  --danger-soft: #2c1116;
+  --info: #38bdf8;
+  --info-soft: #0a2130;
+
+  --s1: #5b8dff;
+  --s2: #a78bfa;
+  --s3: #2dd4bf;
+  --s4: #fbbf24;
+  --s5: #f472b6;
+
+  --nav: #101013;
+  --nav-ink: #a1a1aa;
+  --nav-ink-strong: #ffffff;
+  --nav-active-bg: #1b2740;
+  --nav-active-ink: #7ba2ff;
+
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, .04), 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .6), 0 4px 8px rgba(0, 0, 0, .4);
+
+  --hot: #ff6b61;   --hot-bg: rgba(245, 51, 63, .14);   --hot-line: rgba(245, 51, 63, .32);
+  --warm: #ffb661;  --warm-bg: rgba(249, 115, 22, .14); --warm-line: rgba(249, 115, 22, .3);
+  --cold: #60a5fa;  --cold-bg: rgba(59, 130, 246, .14); --cold-line: rgba(59, 130, 246, .3);
+  --dead: #94a3b8;  --dead-bg: rgba(148, 163, 184, .12);--dead-line: rgba(148, 163, 184, .26);
+  --fresh: #4ade80; --fresh-bg: rgba(22, 163, 74, .16); --fresh-line: rgba(22, 163, 74, .32);
+  --canvas-gradient: radial-gradient(140% 120% at 18% -10%, #16161a 0%, #101013 46%, #0a0a0a 100%);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .05);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-muted);
+  --color-surface-3: var(--surface-sunken);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-good: var(--success);
+  --color-good-text: var(--success);
+  --color-good-wash: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-soft);
+  --color-critical: var(--danger);
+  --color-critical-text: var(--danger);
+  --color-critical-wash: var(--danger-soft);
+  --color-info: var(--info);
+
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --color-s5: var(--s5);
+
+  --color-nav: var(--nav);
+  --color-nav-ink: var(--nav-ink);
+  --color-nav-ink-strong: var(--nav-ink-strong);
+  --color-nav-active: var(--nav-active-bg);
+  --color-nav-active-ink: var(--nav-active-ink);
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --color-hot: var(--hot);        --color-hot-bg: var(--hot-bg);     --color-hot-line: var(--hot-line);
+  --color-warm: var(--warm);      --color-warm-bg: var(--warm-bg);   --color-warm-line: var(--warm-line);
+  --color-cold: var(--cold);      --color-cold-bg: var(--cold-bg);   --color-cold-line: var(--cold-line);
+  --color-dead: var(--dead);      --color-dead-bg: var(--dead-bg);   --color-dead-line: var(--dead-line);
+  --color-fresh: var(--fresh);    --color-fresh-bg: var(--fresh-bg); --color-fresh-line: var(--fresh-line);
+  --color-risk: var(--risk);      --color-risk-bg: var(--risk-bg);   --color-risk-line: var(--risk-line);
+
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  background: var(--canvas-gradient);
+  background-attachment: fixed;
+}
+
+body {
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.006em;
+}
+
+/* Колонки цифр выравниваем моноширинным; крупные одиночные числа — нет */
+.tnum {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rise {
+  animation: rise .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  * { transition-duration: .01ms !important; }
+}
+
+/* Главная кнопка: градиент и цветная тень — так она читается как действие */
+.btn-primary {
+  background: var(--btn-gradient);
+  color: #fff;
+  box-shadow: var(--btn-shadow);
+  border: 1px solid #2358e0;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+/* Тёмная стеклянная карточка поверх светлой страницы */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--glass-shadow);
+  color: #ededf0;
+}
+
+.card-shadow {
+  box-shadow: var(--shadow-card);
+}

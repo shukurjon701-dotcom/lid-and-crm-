@@ -1,0 +1,820 @@
+// ============================================================================
+//  CRM сети учебных центров — схема БД
+//  Ключевые принципы:
+//   1. Мульти-филиальность: почти каждая сущность несёт branchId (жёсткая
+//      изоляция данных на уровне запросов + опционально Postgres RLS).
+//   2. Аудит: любое значимое изменение пишется в AuditLog (кто/что/когда,
+//      старое → новое значение).
+//   3. Деньги: Decimal(14,2), долг считается из Invoice, а не из "флага".
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================== ENUMS =======================================
+
+enum Role {
+  OWNER // Shtab / Xitob — видит все филиалы
+  BRANCH_ADMIN // Администратор филиала
+  OPERATOR // Call-центр
+  ACCOUNTANT // Moliya
+  TEACHER // Учитель (только свои группы)
+}
+
+enum LeadStatus {
+  NEW // Новый, не обработан
+  IN_PROGRESS // В работе у оператора
+  NO_ANSWER // Не дозвонились
+  VISIT_PLANNED // Записан на визит
+  VISITED // Пришёл в офис (tashrif)
+  CONVERTED // Стал студентом
+  REJECTED // Отказ
+  LOST // Слив / потерян
+}
+
+enum LeadSource {
+  INSTAGRAM
+  TELEGRAM
+  FACEBOOK
+  TIKTOK
+  WEBSITE
+  REFERRAL // Сарафан
+  WALK_IN // Пришёл сам
+  INBOUND_CALL
+  OTHER
+}
+
+enum SaleChannel {
+  ONLINE // Sotuv online
+  OFFLINE // Sotuv offline
+}
+
+enum StudentStatus {
+  ACTIVE
+  FROZEN // Muzlatilgan
+  LEFT // Ушёл (ketgan)
+  GRADUATED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  FROZEN
+  DROPPED
+  FINISHED
+}
+
+enum GroupStatus {
+  PLANNED
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum PaymentMethod {
+  CASH // Naqd
+  CARD // Kart (перевод на карту)
+  TERMINAL // Terminal (POS)
+  TRANSFER // Банковский перевод / Click / Payme
+}
+
+enum PaymentDirection {
+  INCOME
+  REFUND // Возврат (уменьшает кассу)
+}
+
+enum InvoiceStatus {
+  OPEN // Выставлен, срок не наступил
+  PARTIALLY_PAID
+  PAID
+  OVERDUE // Просрочен → студент = должник (qarzdor)
+  CANCELLED
+}
+
+enum CallType {
+  OUTGOING
+  INCOMING
+}
+
+enum CallResult {
+  ANSWERED
+  NO_ANSWER
+  BUSY
+  INVALID_NUMBER
+  CALLBACK_LATER
+  REFUSED
+  APPOINTED // Записали на визит
+}
+
+enum WorkSessionStatus {
+  OPEN // "Пришёл", смена не закрыта
+  CLOSED // "Ушёл"
+  AUTO_CLOSED // Закрыта системой (забыл нажать "Ушёл")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  LOGOUT
+  CHECK_IN
+  CHECK_OUT
+  CONVERT // Лид → Студент
+  PAYMENT_CREATE
+  PAYMENT_DELETE
+  EXPENSE_CREATE
+  EXPENSE_DELETE
+  FREEZE
+  UNFREEZE
+  DEBT_OPENED // Ученик стал должником
+  DEBT_CLOSED
+  EXPORT
+  PERMISSION_CHANGE
+}
+
+// ============================== ORG / ДОСТУП ================================
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String // "Filial Chilonzor"
+  code      String   @unique // "CHZ" — для номеров договоров/чеков
+  address   String?
+  phone     String?
+  city      String?
+  timezone  String   @default("Asia/Tashkent")
+  isActive  Boolean  @default(true)
+  openedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]              @relation("UserHomeBranch")
+  branchAccess      UserBranchAccess[]
+  leads             Lead[]
+  students          Student[]
+  groups            Group[]
+  courses           Course[]
+  rooms             Room[]
+  enrollments       Enrollment[]
+  attendance        Attendance[]
+  invoices          Invoice[]
+  payments          Payment[]
+  expenses          Expense[]
+  expenseCategories ExpenseCategory[]
+  calls             CallLog[]
+  visits            Visit[]
+  workSessions      WorkSession[]
+  auditLogs         AuditLog[]
+  targets           BranchMonthlyTarget[]
+
+  @@index([isActive])
+  @@map("branches")
+}
+
+model User {
+  id String @id @default(cuid())
+
+  /// Логин для входа: короткий, в нижнем регистре (admin1, nodira, ...)
+  login        String  @unique
+  fullName     String
+  phone        String? @unique
+  email        String? @unique
+  passwordHash String
+  role         Role
+  avatarUrl    String?
+
+  // Домашний филиал. Для OWNER — филиал по умолчанию при входе.
+  branchId String
+  branch   Branch @relation("UserHomeBranch", fields: [branchId], references: [id])
+
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Доп. филиалы (например, админ обслуживает два филиала).
+  branchAccess UserBranchAccess[]
+
+  // Обратные связи
+  leadsOwned       Lead[]        @relation("LeadOperator")
+  leadsCreated     Lead[]        @relation("LeadCreatedBy")
+  studentsManaged  Student[]     @relation("StudentAdmin")
+  groupsTaught     Group[]       @relation("GroupTeacher")
+  attendanceMarked Attendance[]  @relation("AttendanceMarkedBy")
+  paymentsAccepted Payment[]     @relation("PaymentReceivedBy")
+  expensesCreated  Expense[]     @relation("ExpenseCreatedBy")
+  expensesApproved Expense[]     @relation("ExpenseApprovedBy")
+  calls            CallLog[]     @relation("CallOperator")
+  visitsHandled    Visit[]       @relation("VisitHandledBy")
+  visitsInvited    Visit[]       @relation("VisitInvitedBy")
+  workSessions     WorkSession[] @relation("WorkSessionUser")
+  auditLogs        AuditLog[]    @relation("AuditActor")
+
+  @@index([branchId, role])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Доступ пользователя к дополнительным филиалам.
+/// OWNER не нуждается в записях: ему разрешены все филиалы по роли.
+model UserBranchAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  branchId  String
+  canWrite  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([branchId])
+  @@map("user_branch_access")
+}
+
+// ============================== ВОРОНКА / ЛИДЫ ==============================
+
+model Lead {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  fullName    String
+  phone       String
+  parentPhone String?
+  age         Int?
+  source      LeadSource @default(OTHER)
+  campaign    String? // utm_campaign / название рекламы
+  status      LeadStatus @default(NEW)
+
+  /// Целевой (качественный) лид — Sifatli lid. Ставит оператор.
+  isQualified Boolean @default(false)
+
+  /// Интересующий курс
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  /// Ответственный оператор call-центра
+  operatorId String?
+  operator   User?   @relation("LeadOperator", fields: [operatorId], references: [id])
+
+  createdById String?
+  createdBy   User?   @relation("LeadCreatedBy", fields: [createdById], references: [id])
+
+  comment      String?
+  nextActionAt DateTime? // Когда перезвонить
+
+  // Ключевые метки времени воронки (для отчётов без сканирования аудита)
+  firstContactAt DateTime?
+  convertedAt    DateTime?
+  rejectedAt     DateTime?
+  rejectReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  calls   CallLog[]
+  visits  Visit[]
+  student Student?
+
+  @@index([branchId, status, createdAt])
+  @@index([branchId, operatorId, createdAt])
+  @@index([phone])
+  @@map("leads")
+}
+
+/// Звонок оператора. Основа метрик "Umumiy qo'ng'iroq soni" / "Kunlik call".
+model CallLog {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  operatorId String
+  operator   User   @relation("CallOperator", fields: [operatorId], references: [id])
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  type            CallType   @default(OUTGOING)
+  result          CallResult
+  durationSeconds Int        @default(0)
+  /// true — засчитывается как "Call dars" (полноценная консультация/урок по телефону)
+  isLesson        Boolean    @default(false)
+  phone           String
+  note            String?
+  recordingUrl    String?
+
+  calledAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([branchId, calledAt])
+  @@index([operatorId, calledAt])
+  @@index([leadId])
+  @@map("call_logs")
+}
+
+/// Визит в офис (Tashrif). Генерируется оператором или приходом "с улицы".
+model Visit {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  /// Кто пригласил (оператор call-центра) — для метрики "Tashriflar soni"
+  invitedById String?
+  invitedBy   User?   @relation("VisitInvitedBy", fields: [invitedById], references: [id])
+
+  /// Кто принял в филиале (админ)
+  handledById String?
+  handledBy   User?   @relation("VisitHandledBy", fields: [handledById], references: [id])
+
+  scheduledAt DateTime?
+  arrivedAt   DateTime?
+  didArrive   Boolean   @default(false)
+  resultSale  Boolean   @default(false) // Визит закончился продажей
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId, scheduledAt])
+  @@index([branchId, arrivedAt])
+  @@index([invitedById, createdAt])
+  @@map("visits")
+}
+
+// ============================== УЧЕНИКИ =====================================
+
+model Student {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  /// Человекочитаемый номер: CHZ-000123
+  publicId String @unique
+
+  fullName    String
+  phone       String
+  parentName  String?
+  parentPhone String?
+  birthDate   DateTime?
+  address     String?
+
+  status StudentStatus @default(ACTIVE)
+
+  /// Откуда пришёл
+  leadId      String?      @unique
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  source      LeadSource   @default(OTHER)
+  saleChannel SaleChannel? // online / offline продажа
+
+  /// Кто оформил (админ филиала)
+  adminId String?
+  admin   User?   @relation("StudentAdmin", fields: [adminId], references: [id])
+
+  /// Денормализованный баланс: сумма (оплаты − начисления). Отрицательный = долг.
+  balance Decimal @default(0) @db.Decimal(14, 2)
+
+  /// Момент образования долга (первый непогашенный просроченный счёт).
+  /// Проставляется джобой/сервисом, детали — в AuditLog (DEBT_OPENED).
+  debtSince DateTime?
+
+  startedAt  DateTime  @default(now())
+  frozenAt   DateTime?
+  frozenTill DateTime?
+  leftAt     DateTime?
+  leftReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+  invoices    Invoice[]
+  payments    Payment[]
+  attendance  Attendance[]
+  calls       CallLog[]
+
+  @@index([branchId, status])
+  @@index([branchId, debtSince])
+  @@index([phone])
+  @@map("students")
+}
+
+// ============================== УЧЕБНАЯ ЧАСТЬ ===============================
+
+model Course {
+  id       String @id @default(cuid())
+  branchId String // null-филиальные (общие) курсы можно копировать при seed
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  name           String
+  description    String?
+  durationMonths Int     @default(3)
+  lessonsPerWeek Int     @default(3)
+  monthlyPrice   Decimal @db.Decimal(14, 2)
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groups Group[]
+  leads  Lead[]
+
+  @@unique([branchId, name])
+  @@index([branchId, isActive])
+  @@map("courses")
+}
+
+model Room {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+  name     String
+  capacity Int    @default(15)
+
+  groups Group[]
+
+  @@unique([branchId, name])
+  @@map("rooms")
+}
+
+model Group {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  name     String
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+
+  teacherId String?
+  teacher   User?   @relation("GroupTeacher", fields: [teacherId], references: [id])
+
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id])
+
+  status GroupStatus @default(PLANNED)
+
+  /// Расписание: [{ "day": 1, "start": "09:00", "end": "10:30" }]
+  schedule Json?
+
+  startDate DateTime?
+  endDate   DateTime?
+  capacity  Int       @default(15)
+
+  /// Цена группы; если null — берём Course.monthlyPrice
+  monthlyPrice Decimal? @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+  attendance  Attendance[]
+  invoices    Invoice[]
+
+  @@unique([branchId, name])
+  @@index([branchId, status])
+  @@index([teacherId])
+  @@map("groups")
+}
+
+/// Связь Студент ↔ Группа. Здесь же счётчик посещённых уроков —
+/// он даёт метрику удержания "пришёл на 2-й / 3-й урок".
+model Enrollment {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  status EnrollmentStatus @default(ACTIVE)
+
+  /// Сколько уроков реально посетил в этой группе (PRESENT|LATE).
+  lessonsAttended Int @default(0)
+
+  /// Даты 1/2/3-го посещения — денормализация ради быстрых воронок удержания.
+  firstLessonAt  DateTime?
+  secondLessonAt DateTime?
+  thirdLessonAt  DateTime?
+
+  /// Индивидуальная цена (скидка) — если null, берётся из группы/курса
+  priceOverride Decimal? @db.Decimal(14, 2)
+  discountPct   Int      @default(0)
+
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendance Attendance[]
+  invoices   Invoice[]
+
+  @@unique([studentId, groupId])
+  @@index([branchId, status])
+  @@index([groupId, status])
+  @@map("enrollments")
+}
+
+model Attendance {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  lessonDate DateTime // дата урока (00:00 локального дня)
+  /// Порядковый номер урока для этого enrollment (1, 2, 3 ...)
+  lessonNo   Int
+  status     AttendanceStatus @default(PRESENT)
+  note       String?
+
+  markedById String?
+  markedBy   User?   @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([enrollmentId, lessonDate])
+  @@index([branchId, lessonDate])
+  @@index([groupId, lessonDate])
+  @@index([studentId, lessonDate])
+  @@map("attendance")
+}
+
+// ============================== ФИНАНСЫ =====================================
+
+/// Начисление за обучение (месяц / курс). Долг = сумма OVERDUE-инвойсов.
+model Invoice {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  /// Период: 2026-08-01 (первое число оплачиваемого месяца)
+  periodStart DateTime
+  periodEnd   DateTime
+  dueDate     DateTime
+
+  amount     Decimal       @db.Decimal(14, 2)
+  paidAmount Decimal       @default(0) @db.Decimal(14, 2)
+  status     InvoiceStatus @default(OPEN)
+
+  /// Когда счёт стал просроченным — источник даты "стал должником"
+  overdueSince DateTime?
+  closedAt     DateTime?
+
+  comment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations PaymentAllocation[]
+
+  @@unique([enrollmentId, periodStart])
+  @@index([branchId, status, dueDate])
+  @@index([studentId, status])
+  @@map("invoices")
+}
+
+model Payment {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  amount    Decimal          @db.Decimal(14, 2)
+  method    PaymentMethod
+  direction PaymentDirection @default(INCOME)
+
+  /// Первый платёж клиента — метрика "Yangi mijoz to'lov qildi"
+  isFirstPayment Boolean @default(false)
+
+  /// Кто принял деньги (кассир/админ)
+  receivedById String
+  receivedBy   User   @relation("PaymentReceivedBy", fields: [receivedById], references: [id])
+
+  paidAt    DateTime @default(now())
+  comment   String?
+  receiptNo String?  @unique
+
+  /// Мягкое удаление: платежи не удаляем физически (аудит + сверка кассы)
+  voidedAt     DateTime?
+  voidedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations PaymentAllocation[]
+
+  @@index([branchId, paidAt])
+  @@index([branchId, method, paidAt])
+  @@index([studentId, paidAt])
+  @@map("payments")
+}
+
+/// Разнесение платежа по счетам (один платёж может закрыть несколько месяцев).
+model PaymentAllocation {
+  id        String  @id @default(cuid())
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@unique([paymentId, invoiceId])
+  @@index([invoiceId])
+  @@map("payment_allocations")
+}
+
+model ExpenseCategory {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  name     String // Аренда, Зарплата, Реклама, Хозрасходы...
+  isActive Boolean @default(true)
+
+  expenses Expense[]
+
+  @@unique([branchId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  amount Decimal       @db.Decimal(14, 2)
+  method PaymentMethod @default(CASH)
+
+  title       String
+  description String?
+  attachment  String? // ссылка на скан чека
+
+  /// Автор расхода — обязателен (вопрос "кто добавил расход из кассы?")
+  createdById String
+  createdBy   User   @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  approvedById String?
+  approvedBy   User?     @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  spentAt DateTime @default(now())
+
+  voidedAt     DateTime?
+  voidedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId, spentAt])
+  @@index([createdById, spentAt])
+  @@map("expenses")
+}
+
+/// Планы филиала на месяц — для план/факт на дашборде Shtab.
+model BranchMonthlyTarget {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  month DateTime // первое число месяца
+
+  revenueTarget  Decimal @db.Decimal(14, 2)
+  studentsTarget Int     @default(0)
+  leadsTarget    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, month])
+  @@map("branch_monthly_targets")
+}
+
+// ============================== УЧЁТ ВРЕМЕНИ ================================
+
+/// Смена сотрудника: "Пришёл" / "Ушёл" + отработанные часы.
+model WorkSession {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  userId String
+  user   User   @relation("WorkSessionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  checkInAt  DateTime
+  checkOutAt DateTime?
+
+  /// Денормализовано при закрытии смены — чтобы не считать на лету в отчётах.
+  workedMinutes Int               @default(0)
+  status        WorkSessionStatus @default(OPEN)
+
+  checkInIp  String?
+  checkOutIp String?
+  note       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId, checkInAt])
+  @@index([userId, checkInAt])
+  @@map("work_sessions")
+}
+
+// ============================== АУДИТ =======================================
+
+/// Журнал изменений. Пишется через lib/audit.ts (и/или Prisma $extends),
+/// записи иммутабельны: никаких update/delete на уровне приложения.
+model AuditLog {
+  id String @id @default(cuid())
+
+  /// Филиал, к которому относится изменённая запись (для фильтрации в UI).
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+  /// Автор изменения. null — системная джоба (например, начисление просрочки).
+  actorId   String?
+  actor     User?   @relation("AuditActor", fields: [actorId], references: [id])
+  actorRole Role?
+  actorName String? // снимок имени на момент действия
+
+  action AuditAction
+
+  /// Имя модели: "Lead", "Student", "Payment", "Expense"...
+  entity   String
+  entityId String
+  /// Человекочитаемая подпись объекта на момент действия ("Ali Valiyev, CHZ-000123")
+  entityLabel String?
+
+  /// Для одиночного изменения (чаще всего — смена статуса):
+  field    String?
+  oldValue String?
+  newValue String?
+
+  /// Полный дифф для множественных изменений:
+  /// [{ "field": "status", "old": "NEW", "new": "CONVERTED" }, ...]
+  changes Json?
+
+  /// Свободный комментарий/причина ("Заморозка по заявлению родителя")
+  reason String?
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([entity, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entity, field, newValue, createdAt])
+  @@map("audit_logs")
+}

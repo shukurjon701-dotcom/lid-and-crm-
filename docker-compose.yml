@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lid-crm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lid
+      POSTGRES_PASSWORD: lid
+      POSTGRES_DB: lid_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - lid-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lid -d lid_crm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  lid-db-data:
