@@ -380,6 +380,7 @@ export function buildDemoDataset(now = new Date()): Dataset {
   return {
     isDemo: true,
     generatedAt: now,
+    lastCallAt: calls[0]?.calledAt ?? null,
     students,
     leads,
     calls,

@@ -164,6 +164,7 @@ async function loadFromDatabase(): Promise<Dataset> {
   return {
     isDemo: false,
     generatedAt: new Date(),
+    lastCallAt: calls[0]?.calledAt ?? null,
     students: students.map((s) => {
       const enrollment = s.enrollments[0];
       return {

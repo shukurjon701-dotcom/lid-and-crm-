@@ -137,6 +137,8 @@ export type Dataset = {
   /** true — данные демонстрационные, БД ещё не подключена */
   isDemo: boolean;
   generatedAt: Date;
+  /** Время самого свежего звонка — по нему видно, когда обновлялись данные */
+  lastCallAt: Date | null;
   students: StudentRec[];
   leads: LeadRec[];
   calls: CallRec[];

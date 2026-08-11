@@ -7,6 +7,7 @@ import { Building2, LogOut, Menu, X } from "lucide-react";
 import { NavIcon } from "@/components/layout/icon";
 import { ShiftTimer } from "@/components/layout/shift-timer";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { RefreshButton } from "@/components/layout/refresh-button";
 import { APP } from "@/config/app";
 import { cn, initials } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
@@ -16,10 +17,12 @@ export type AppShellProps = {
   user: { fullName: string; roleLabel: string; login: string };
   nav: NavSection[];
   isDemo: boolean;
+  lastCallAt: string | null;
+  canRefresh: boolean;
   children: React.ReactNode;
 };
 
-export function AppShell({ user, nav, isDemo, children }: AppShellProps) {
+export function AppShell({ user, nav, isDemo, lastCallAt, canRefresh, children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -159,6 +162,7 @@ export function AppShell({ user, nav, isDemo, children }: AppShellProps) {
               <Building2 className="size-3.5 text-ink-3" strokeWidth={2.2} />
               {APP.branch.name}
             </span>
+            {canRefresh && <RefreshButton lastAt={lastCallAt} />}
             <ShiftTimer />
             <ThemeToggle />
           </div>
