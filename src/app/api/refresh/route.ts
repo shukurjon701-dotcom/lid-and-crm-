@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
-import { refreshBitrix } from "@/server/sync/refresh";
+import { refreshBitrix, refreshSahabFinance } from "@/server/sync/refresh";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -28,11 +28,17 @@ async function handle(request: Request) {
   }
 
   try {
-    const result = await refreshBitrix(days);
+    const [bitrix, finance] = await Promise.all([
+      refreshBitrix(days),
+      refreshSahabFinance(),
+    ]);
     return NextResponse.json({
       ok: true,
-      ...result,
-      message: `Обновлено: ${result.calls} звонков, ${result.leads} лидов, ${result.visits} визитов`,
+      ...bitrix,
+      ...finance,
+      message:
+        `Обновлено: ${bitrix.calls} звонков, ${bitrix.leads} лидов, ` +
+        `${finance.payments} платежей, ${finance.expenses} расходов`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

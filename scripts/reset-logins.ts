@@ -14,11 +14,11 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 const DRY_RUN = process.argv.includes("--dry-run");
 
-async function bitrixStaff(): Promise<Map<string, string>> {
+async function bitrixStaff(): Promise<Map<string, string[]>> {
   const webhook = process.env.BITRIX_WEBHOOK?.replace(/\/+$/, "");
   if (!webhook) return new Map();
 
-  const byName = new Map<string, string>();
+  const byName = new Map<string, string[]>();
   let start = 0;
   for (;;) {
     const response = await fetch(`${webhook}/user.get.json`, {
@@ -36,7 +36,12 @@ async function bitrixStaff(): Promise<Map<string, string>> {
         .filter((v) => v && !/^REG_ADMIN/i.test(v))
         .join(" ")
         .trim();
-      if (name) byName.set(name.toLowerCase(), String(user.ID));
+      if (!name) continue;
+      // На одно имя в Bitrix бывает несколько учёток — храним все ID,
+      // иначе при сбросе логиновдве  записи схлопнутся в одну и часть
+      // звонков потеряет владельца.
+      const key = name.toLowerCase();
+      byName.set(key, [...(byName.get(key) ?? []), String(user.ID)]);
     }
     if (data.next === undefined) break;
     start = data.next;
@@ -84,12 +89,16 @@ async function main() {
   // В Bitrix встречаются две учётки на одно имя, поэтому логин может оказаться
   // занят — тогда добавляем номер, иначе база не даст записать.
   for (const user of toReset) {
-    const base = `bitrix-${fromBitrix.get(user.fullName.toLowerCase().trim())}`;
-    let login = base;
-    for (let n = 2; n < 20; n++) {
-      const taken = await prisma.user.findUnique({ where: { login }, select: { id: true } });
-      if (!taken || taken.id === user.id) break;
-      login = `${base}-${n}`;
+    // Каждой записи достаётся свой идентификатор Bitrix, а не общий на имя
+    const ids = fromBitrix.get(user.fullName.toLowerCase().trim()) ?? [];
+    let login = `bitrix-${ids[0] ?? user.id}`;
+    for (const id of ids) {
+      const candidate = `bitrix-${id}`;
+      const taken = await prisma.user.findUnique({ where: { login: candidate }, select: { id: true } });
+      if (!taken || taken.id === user.id) {
+        login = candidate;
+        break;
+      }
     }
     await prisma.user.update({
       where: { id: user.id },

@@ -128,12 +128,39 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
     select: { id: true },
   });
 
-  const staff = await prisma.user.findMany({
-    where: { login: { startsWith: "bitrix-" } },
-    select: { id: true, login: true },
-  });
+  // Сотрудников заводим по списку из Bitrix: если запись потерялась или
+  // появился новый оператор, его звонки иначе свалятся на администратора
+  // и покажут неверную статистику.
+  const portalUsers = await bitrixAll("user.get", {});
+  const staff = new Map<string, string>();
+
+  for (const user of portalUsers) {
+    const login = `bitrix-${user.ID}`;
+    const name =
+      [user.NAME, user.LAST_NAME]
+        .map((v) => String(v ?? "").trim())
+        .filter((v) => v && !/^REG_ADMIN/i.test(v))
+        .join(" ")
+        .trim() || ".";
+
+    const existing =
+      (await prisma.user.findUnique({ where: { login }, select: { id: true } })) ??
+      (await prisma.user.create({
+        data: {
+          login,
+          fullName: name,
+          passwordHash: "!", // вход создаётся только самим сотрудником
+          role: "OPERATOR",
+          branchId: branch.id,
+          isActive: user.ACTIVE !== false,
+        },
+        select: { id: true },
+      }));
+    staff.set(String(user.ID), existing.id);
+  }
+
   const operatorId = (bitrixUserId: unknown) =>
-    staff.find((u) => u.login === `bitrix-${bitrixUserId}`)?.id ?? fallback.id;
+    staff.get(String(bitrixUserId)) ?? fallback.id;
 
   const [calls, leads] = await Promise.all([
     bitrixAll("voximplant.statistic.get", {
@@ -255,3 +282,177 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
 }
 
 void API_BASE;
+
+// ====================================================== ФИНАНСЫ ИЗ SAHAB
+const SAHAB_API = "https://api.sahab.uz/api/v1";
+const BOOKS_CATEGORY = "Kitoblar (книги)";
+
+async function sahabToken() {
+  const tenant = process.env.SAHAB_DOMAIN || "arabicacademy.sahab.uz";
+  const headers = { "Content-Type": "application/json", "x-tenant-domain": tenant };
+
+  const response = await fetch(`${SAHAB_API}/accounts/login/`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      phone_number: process.env.SAHAB_PHONE,
+      password: process.env.SAHAB_PASSWORD,
+    }),
+  });
+  if (!response.ok) throw new Error(`Sahab: вход не удался (${response.status})`);
+
+  const data = (await response.json()).data as {
+    access: string;
+    profiles?: { type: string; id: string }[];
+  };
+  const auth = { ...headers, Authorization: `Bearer ${data.access}` };
+
+  const profile = data.profiles?.[0];
+  if (profile) {
+    await fetch(`${SAHAB_API}/accounts/set-profile-type/`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ profile_type: profile.type, profile_id: profile.id }),
+    });
+  }
+  return auth;
+}
+
+async function sahabAll(auth: Record<string, string>, path: string) {
+  const out: Record<string, unknown>[] = [];
+  let url: string | null = `${SAHAB_API}${path}?page_size=200`;
+  while (url) {
+    const response: Response = await fetch(url, { headers: auth });
+    if (!response.ok) throw new Error(`Sahab ${path} → ${response.status}`);
+    const json = (await response.json()) as Record<string, unknown>;
+    const body = (json.data ?? json) as Record<string, unknown>;
+    const results = body.results as Record<string, unknown> | unknown[] | undefined;
+    const items = Array.isArray(body)
+      ? (body as unknown[])
+      : Array.isArray(results)
+        ? results
+        : ((results as Record<string, unknown>)?.data as unknown[]) ??
+          (body.data as unknown[]) ??
+          [];
+    out.push(...(items as Record<string, unknown>[]));
+    url = (body.next ?? json.next ?? null) as string | null;
+  }
+  return out;
+}
+
+const money = (value: unknown) => Number(value ?? 0);
+const day = (value: unknown) => (value ? new Date(`${String(value)}T12:00:00`) : new Date());
+
+const METHOD: Record<string, "CASH" | "CARD" | "TERMINAL" | "TRANSFER"> = {
+  naqd: "CASH",
+  terminal: "TERMINAL",
+  karta: "CARD",
+  kart: "CARD",
+  click: "TRANSFER",
+  payme: "TRANSFER",
+  uzum: "TRANSFER",
+};
+
+const toMethod = (name: unknown) => {
+  const key = String(name ?? "").toLowerCase().trim();
+  for (const [word, value] of Object.entries(METHOD)) if (key.includes(word)) return value;
+  return "CASH" as const;
+};
+
+export type FinanceResult = { payments: number; expenses: number };
+
+/**
+ * Платежи и расходы из Sahab. Их немного (сотни строк), поэтому проще
+ * переписать целиком, чем вычислять разницу. Книжные расходы не трогаем —
+ * они приходят из отдельной таблицы.
+ */
+export async function refreshSahabFinance(): Promise<FinanceResult> {
+  if (!process.env.SAHAB_PHONE || !process.env.SAHAB_PASSWORD) {
+    return { payments: 0, expenses: 0 };
+  }
+
+  const auth = await sahabToken();
+  const [payments, expenses] = await Promise.all([
+    sahabAll(auth, "/finance/payments/"),
+    sahabAll(auth, "/finance/expenses/"),
+  ]);
+
+  const branch = await prisma.branch.findUniqueOrThrow({ where: { id: APP.branch.id } });
+  const admin = await prisma.user.findFirstOrThrow({
+    where: { branchId: branch.id, role: "BRANCH_ADMIN" },
+    select: { id: true, fullName: true },
+  });
+
+  const students = await prisma.student.findMany({ select: { id: true, fullName: true } });
+  const byName = new Map(students.map((s) => [s.fullName.trim().toLowerCase(), s.id]));
+
+  const staff = await prisma.user.findMany({ select: { id: true, fullName: true } });
+  const staffByName = new Map(staff.map((u) => [u.fullName.trim().toLowerCase(), u.id]));
+  const whoever = (name: unknown) =>
+    staffByName.get(String(name ?? "").trim().toLowerCase()) ?? admin.id;
+
+  const books = await prisma.expenseCategory.findFirst({
+    where: { branchId: branch.id, name: BOOKS_CATEGORY },
+    select: { id: true },
+  });
+
+  await prisma.$transaction([
+    prisma.paymentAllocation.deleteMany(),
+    prisma.payment.deleteMany({ where: { branchId: branch.id } }),
+    prisma.expense.deleteMany({
+      where: {
+        branchId: branch.id,
+        ...(books ? { NOT: { categoryId: books.id } } : {}),
+      },
+    }),
+  ]);
+
+  const paymentRows = payments.map((p) => {
+    const signed = money(p.signed_amount ?? p.amount);
+    return {
+      branchId: branch.id,
+      studentId: byName.get(String(p.student_name ?? "").trim().toLowerCase()) ?? null,
+      amount: Math.abs(signed),
+      direction: signed < 0 || p.kind === "refund" ? ("REFUND" as const) : ("INCOME" as const),
+      method: toMethod(p.payment_method_name),
+      receivedById: admin.id,
+      paidAt: day(p.date),
+      comment: (p.note as string) || null,
+    };
+  });
+
+  for (let i = 0; i < paymentRows.length; i += 500) {
+    await prisma.payment.createMany({ data: paymentRows.slice(i, i + 500), skipDuplicates: true });
+  }
+
+  // категории расходов
+  const categories = new Map<string, string>();
+  for (const expense of expenses) {
+    const name = String(expense.category_name ?? "Прочее").trim() || "Прочее";
+    if (categories.has(name)) continue;
+    const existing =
+      (await prisma.expenseCategory.findFirst({ where: { branchId: branch.id, name } })) ??
+      (await prisma.expenseCategory.create({ data: { branchId: branch.id, name } }));
+    categories.set(name, existing.id);
+  }
+
+  const expenseRows = expenses.map((e) => {
+    const name = String(e.category_name ?? "Прочее").trim() || "Прочее";
+    return {
+      branchId: branch.id,
+      categoryId: categories.get(name)!,
+      title: e.recipient ? `${name} — ${e.recipient}` : name,
+      amount: money(e.amount),
+      method: toMethod(e.payment_method_name),
+      createdById: whoever(e.received_by_name),
+      spentAt: day(e.date),
+      description: (e.note as string) || null,
+    };
+  });
+
+  for (let i = 0; i < expenseRows.length; i += 500) {
+    await prisma.expense.createMany({ data: expenseRows.slice(i, i + 500), skipDuplicates: true });
+  }
+
+  return { payments: paymentRows.length, expenses: expenseRows.length };
+}

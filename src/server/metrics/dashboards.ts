@@ -380,8 +380,12 @@ export function personalMetrics(
   const sameName = (value: string) =>
     value.trim().toLowerCase() === user.fullName.trim().toLowerCase();
 
+  // Один и тот же человек может числиться в Bitrix дважды — тогда звонки
+  // висят на одной записи, а вход создан на другой. Поэтому сверяем и по имени.
+  const mine = (id: string, name: string) => id === user.id || sameName(name);
+
   // ---- звонки
-  const myCalls = ds.calls.filter((c) => c.operatorId === user.id);
+  const myCalls = ds.calls.filter((c) => mine(c.operatorId, c.operatorName));
   const callsToday = myCalls.filter((c) => inRange(c.calledAt, p.todayFrom, p.todayTo));
   const callsYesterday = myCalls.filter((c) =>
     inRange(c.calledAt, p.yesterdayFrom, p.todayFrom)
@@ -389,10 +393,10 @@ export function personalMetrics(
   const callsMonth = myCalls.filter((c) => inRange(c.calledAt, p.monthFrom, p.todayTo));
 
   // ---- лиды и визиты
-  const myLeads = ds.leads.filter((l) => l.operatorId === user.id);
+  const myLeads = ds.leads.filter((l) => mine(l.operatorId, l.operatorName));
   const leadsToday = myLeads.filter((l) => inRange(l.createdAt, p.todayFrom, p.todayTo));
   const leadsMonth = myLeads.filter((l) => inRange(l.createdAt, p.monthFrom, p.todayTo));
-  const myVisits = ds.visits.filter((v) => v.invitedById === user.id);
+  const myVisits = ds.visits.filter((v) => mine(v.invitedById, v.invitedByName));
   const visitsMonth = myVisits.filter((v) => inRange(v.scheduledAt, p.monthFrom, p.todayTo));
 
   // ---- преподавание
@@ -418,7 +422,9 @@ export function personalMetrics(
     }))
     .filter((o) => o.calls > 0)
     .sort((a, b) => b.calls - a.calls);
-  const place = board.findIndex((o) => o.id === user.id);
+  const place = board.findIndex(
+    (o) => o.id === user.id || o.name.trim().toLowerCase() === user.fullName.trim().toLowerCase()
+  );
 
   return {
     hasCalls: myCalls.length > 0,
