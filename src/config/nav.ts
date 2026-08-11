@@ -1,54 +1,59 @@
 import type { Permission } from "@/lib/rbac";
+import type { Key } from "@/lib/i18n";
 
 export type NavItem = {
-  label: string;
-  hint?: string; // подпись на узбекском, как в ТЗ
+  /** Ключ словаря — подпись подставляется на языке пользователя */
+  label: Key;
   href: string;
   icon: string; // имя иконки lucide-react
   permission: Permission;
 };
 
-export type NavSection = { title: string; items: NavItem[] };
+export type NavSection = { title: Key; items: NavItem[] };
+
+/** То же меню, но уже переведённое — в таком виде уходит в интерфейс */
+export type NavSectionView = {
+  title: string;
+  items: { label: string; href: string; icon: string }[];
+};
 
 export const NAV: NavSection[] = [
   {
-    title: "Моё",
+    title: "nav.mine",
+    items: [{ label: "nav.myResults", href: "/me", icon: "Award", permission: "dashboard.me" }],
+  },
+  {
+    title: "nav.dashboards",
     items: [
-      { label: "Мои результаты", hint: "Natijalarim", href: "/me", icon: "Award", permission: "dashboard.me" },
+      { label: "nav.overview", href: "/shtab", icon: "LayoutDashboard", permission: "dashboard.shtab" },
+      { label: "nav.admin", href: "/admin", icon: "ClipboardList", permission: "dashboard.admin" },
+      { label: "nav.callcenter", href: "/call-center", icon: "PhoneCall", permission: "dashboard.callcenter" },
+      { label: "nav.finance", href: "/moliya", icon: "Wallet", permission: "dashboard.moliya" },
     ],
   },
   {
-    title: "Дашборды",
+    title: "nav.clients",
     items: [
-      { label: "Обзор", hint: "Shtab", href: "/shtab", icon: "LayoutDashboard", permission: "dashboard.shtab" },
-      { label: "Администратор", hint: "Admin", href: "/admin", icon: "ClipboardList", permission: "dashboard.admin" },
-      { label: "Call-центр", hint: "Call Centr", href: "/call-center", icon: "PhoneCall", permission: "dashboard.callcenter" },
-      { label: "Финансы", hint: "Moliya", href: "/moliya", icon: "Wallet", permission: "dashboard.moliya" },
+      { label: "nav.leads", href: "/leads", icon: "Target", permission: "leads.read" },
+      { label: "nav.visits", href: "/visits", icon: "DoorOpen", permission: "leads.read" },
+      { label: "nav.students", href: "/students", icon: "Users", permission: "students.read" },
+      { label: "nav.groups", href: "/groups", icon: "GraduationCap", permission: "groups.read" },
+      { label: "nav.attendance", href: "/attendance", icon: "CalendarCheck", permission: "attendance.read" },
     ],
   },
   {
-    title: "Клиенты",
+    title: "nav.money",
     items: [
-      { label: "Лиды", hint: "Lidlar", href: "/leads", icon: "Target", permission: "leads.read" },
-      { label: "Визиты", hint: "Tashriflar", href: "/visits", icon: "DoorOpen", permission: "leads.read" },
-      { label: "Ученики", hint: "O'quvchilar", href: "/students", icon: "Users", permission: "students.read" },
-      { label: "Группы", hint: "Guruhlar", href: "/groups", icon: "GraduationCap", permission: "groups.read" },
-      { label: "Посещаемость", hint: "Davomat", href: "/attendance", icon: "CalendarCheck", permission: "attendance.read" },
+      { label: "nav.payments", href: "/payments", icon: "Banknote", permission: "payments.read" },
+      { label: "nav.expenses", href: "/expenses", icon: "Receipt", permission: "expenses.read" },
+      { label: "nav.debtors", href: "/debtors", icon: "AlertTriangle", permission: "debtors.read" },
     ],
   },
   {
-    title: "Деньги",
+    title: "nav.manage",
     items: [
-      { label: "Платежи", hint: "To'lovlar", href: "/payments", icon: "Banknote", permission: "payments.read" },
-      { label: "Расходы", hint: "Rasxod", href: "/expenses", icon: "Receipt", permission: "expenses.read" },
-      { label: "Должники", hint: "Qarzdorlar", href: "/debtors", icon: "AlertTriangle", permission: "debtors.read" },
-    ],
-  },
-  {
-    title: "Управление",
-    items: [
-      { label: "Сотрудники", hint: "Xodimlar", href: "/users", icon: "UserCog", permission: "users.read" },
-      { label: "История изменений", hint: "Audit", href: "/audit", icon: "History", permission: "audit.read" },
+      { label: "nav.staff", href: "/users", icon: "UserCog", permission: "users.read" },
+      { label: "nav.audit", href: "/audit", icon: "History", permission: "audit.read" },
     ],
   },
 ];

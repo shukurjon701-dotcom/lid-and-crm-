@@ -21,7 +21,8 @@
     "sync:sahab": "tsx --env-file=.env scripts/import/sahab-sync.ts",
     "import:bitrix": "tsx --env-file=.env scripts/import/bitrix.ts",
     "import:books": "tsx --env-file=.env scripts/import/books.ts",
-    "sync:bitrix": "tsx --env-file=.env scripts/import/bitrix-sync.ts"
+    "sync:bitrix": "tsx --env-file=.env scripts/import/bitrix-sync.ts",
+    "users:reset": "tsx --env-file=.env scripts/reset-logins.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

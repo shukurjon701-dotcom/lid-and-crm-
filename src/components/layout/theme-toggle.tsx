@@ -12,7 +12,7 @@ export type Theme = "light" | "dark";
  * тёмный режим. Иначе интерфейс сам уходит в чёрный, и это выглядит совсем
  * не так, как задумано. Выбор запоминается в браузере.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ labels }: { labels: { light: string; dark: string } }) {
   const [theme, setTheme] = useState<Theme>("light");
   const [ready, setReady] = useState(false);
 
@@ -35,8 +35,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-      aria-label={theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"}
+      title={theme === "dark" ? labels.light : labels.dark}
+      aria-label={theme === "dark" ? labels.light : labels.dark}
       className="grid size-9 place-items-center rounded-full border border-line bg-surface text-ink-2 transition hover:border-line-strong hover:text-ink"
     >
       {theme === "dark" ? (

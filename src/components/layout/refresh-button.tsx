@@ -9,7 +9,13 @@ import { cn, formatDate, formatTime } from "@/lib/utils";
  * Кнопка «Обновить»: подтягивает свежие звонки и лиды из Bitrix.
  * Рядом — время последних данных, чтобы было видно, насколько они свежие.
  */
-export function RefreshButton({ lastAt }: { lastAt: string | null }) {
+export function RefreshButton({
+  lastAt,
+  labels,
+}: {
+  lastAt: string | null;
+  labels: { refresh: string; refreshing: string };
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -54,7 +60,7 @@ export function RefreshButton({ lastAt }: { lastAt: string | null }) {
       >
         <RefreshCw className={cn("size-3.5", busy && "animate-spin")} strokeWidth={2.4} />
         <span className="hidden sm:inline">
-          {busy ? "Обновляю…" : last ? `${formatTime(last)}` : "Обновить"}
+          {busy ? labels.refreshing : last ? formatTime(last) : labels.refresh}
         </span>
       </button>
 

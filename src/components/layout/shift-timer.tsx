@@ -13,7 +13,7 @@ const KEY = "lid_shift_start";
  * Сейчас смена хранится в браузере. После подключения БД начало и конец
  * пишутся в WorkSession и в AuditLog (CHECK_IN / CHECK_OUT) — см. README.
  */
-export function ShiftTimer() {
+export function ShiftTimer({ labels }: { labels: { checkIn: string; checkOut: string } }) {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [ready, setReady] = useState(false);
@@ -53,7 +53,7 @@ export function ShiftTimer() {
         className="btn-primary inline-flex h-9 items-center gap-2 rounded-full px-4 text-xs font-bold transition"
       >
         <LogIn className="size-4" strokeWidth={2} />
-        Пришёл
+        {labels.checkIn}
       </button>
     );
   }
@@ -79,7 +79,7 @@ export function ShiftTimer() {
         className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-ink-2 transition hover:bg-surface-2 hover:text-ink"
       >
         <LogOut className="size-3.5" strokeWidth={1.75} />
-        Ушёл
+        {labels.checkOut}
       </button>
     </div>
   );

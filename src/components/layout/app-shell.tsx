@@ -11,18 +11,42 @@ import { RefreshButton } from "@/components/layout/refresh-button";
 import { APP } from "@/config/app";
 import { cn, initials } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
-import type { NavSection } from "@/config/nav";
+import { LangSwitch } from "@/components/layout/lang-switch";
+import type { NavSectionView } from "@/config/nav";
+import type { Lang } from "@/lib/i18n";
+
+export type ShellLabels = {
+  demo: string;
+  refresh: string;
+  refreshing: string;
+  checkIn: string;
+  checkOut: string;
+  logout: string;
+  themeLight: string;
+  themeDark: string;
+};
 
 export type AppShellProps = {
   user: { fullName: string; roleLabel: string; login: string };
-  nav: NavSection[];
+  nav: NavSectionView[];
   isDemo: boolean;
   lastCallAt: string | null;
   canRefresh: boolean;
+  lang: Lang;
+  labels: ShellLabels;
   children: React.ReactNode;
 };
 
-export function AppShell({ user, nav, isDemo, lastCallAt, canRefresh, children }: AppShellProps) {
+export function AppShell({
+  user,
+  nav,
+  isDemo,
+  lastCallAt,
+  canRefresh,
+  lang,
+  labels,
+  children,
+}: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -82,16 +106,6 @@ export function AppShell({ user, nav, isDemo, lastCallAt, canRefresh, children }
                           className={cn("size-[18px] shrink-0", active && "text-nav-active-ink")}
                         />
                         <span className="flex-1 truncate">{item.label}</span>
-                        {item.hint && (
-                          <span
-                            className={cn(
-                              "text-[10px] font-medium",
-                              active ? "text-nav-active-ink/60" : "text-ink-3"
-                            )}
-                          >
-                            {item.hint}
-                          </span>
-                        )}
                       </Link>
                     </li>
                   );
@@ -116,8 +130,8 @@ export function AppShell({ user, nav, isDemo, lastCallAt, canRefresh, children }
               <button
                 type="submit"
                 className="rounded-lg p-1.5 text-ink-3 transition hover:bg-surface hover:text-ink"
-                aria-label="Выйти"
-                title="Выйти"
+                aria-label={labels.logout}
+                title={labels.logout}
               >
                 <LogOut className="size-4" strokeWidth={2} />
               </button>
@@ -147,24 +161,29 @@ export function AppShell({ user, nav, isDemo, lastCallAt, canRefresh, children }
 
           <div className="min-w-0">
             <h1 className="truncate text-[17px] font-extrabold tracking-[-0.03em]">
-              {current?.label ?? "Дашборд"}
+              {current?.label ?? APP.name}
             </h1>
-            {current?.hint && <p className="truncate text-[11px] text-ink-3">{current.hint}</p>}
           </div>
 
           <div className="ml-auto flex items-center gap-2.5">
             {isDemo && (
-              <span className="hidden rounded-full bg-warning-wash px-3 py-1.5 text-[11px] font-bold text-warning sm:inline">
-                Демо-данные
+              <span className="hidden rounded-full bg-warm-bg px-3 py-1.5 text-[11px] font-bold text-warm sm:inline">
+                {labels.demo}
               </span>
             )}
             <span className="hidden items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-bold sm:inline-flex">
               <Building2 className="size-3.5 text-ink-3" strokeWidth={2.2} />
               {APP.branch.name}
             </span>
-            {canRefresh && <RefreshButton lastAt={lastCallAt} />}
-            <ShiftTimer />
-            <ThemeToggle />
+            {canRefresh && (
+              <RefreshButton
+                lastAt={lastCallAt}
+                labels={{ refresh: labels.refresh, refreshing: labels.refreshing }}
+              />
+            )}
+            <ShiftTimer labels={{ checkIn: labels.checkIn, checkOut: labels.checkOut }} />
+            <ThemeToggle labels={{ light: labels.themeLight, dark: labels.themeDark }} />
+            <LangSwitch current={lang} />
           </div>
         </header>
 

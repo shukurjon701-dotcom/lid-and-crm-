@@ -4,9 +4,11 @@ import type { Role } from "@/types/domain";
  * Матрица доступа. Один источник правды и для сайдбара, и для guard-ов
  * в server actions.
  *
- * BRANCH_ADMIN присутствует во всех правах: по требованию администратор
- * центра может делать всё. Ограниченные роли (оператор, бухгалтер,
- * преподаватель) остаются — они пригодятся, когда появятся сотрудники.
+ * BRANCH_ADMIN присутствует во всех правах: администратор центра может всё.
+ *
+ * Оператор и преподаватель видят только свой личный кабинет — ни чужих
+ * звонков, ни общих сводок, ни списков клиентов. Бухгалтеру оставлены
+ * деньги, это его работа.
  */
 export const PERMISSIONS = {
   /** Личный кабинет — доступен каждому сотруднику */
@@ -15,23 +17,23 @@ export const PERMISSIONS = {
   // Дашборды
   "dashboard.shtab": ["OWNER", "BRANCH_ADMIN"],
   "dashboard.admin": ["OWNER", "BRANCH_ADMIN"],
-  "dashboard.callcenter": ["OWNER", "BRANCH_ADMIN", "OPERATOR"],
+  "dashboard.callcenter": ["OWNER", "BRANCH_ADMIN"],
   "dashboard.moliya": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
 
   // Клиенты
-  "leads.read": ["OWNER", "BRANCH_ADMIN", "OPERATOR"],
-  "leads.write": ["OWNER", "BRANCH_ADMIN", "OPERATOR"],
+  "leads.read": ["OWNER", "BRANCH_ADMIN"],
+  "leads.write": ["OWNER", "BRANCH_ADMIN"],
   "leads.convert": ["OWNER", "BRANCH_ADMIN"],
 
-  "students.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT", "TEACHER"],
+  "students.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
   "students.write": ["OWNER", "BRANCH_ADMIN"],
   "students.freeze": ["OWNER", "BRANCH_ADMIN"],
 
-  "groups.read": ["OWNER", "BRANCH_ADMIN", "TEACHER", "ACCOUNTANT"],
+  "groups.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
   "groups.write": ["OWNER", "BRANCH_ADMIN"],
 
-  "attendance.read": ["OWNER", "BRANCH_ADMIN", "TEACHER"],
-  "attendance.write": ["OWNER", "BRANCH_ADMIN", "TEACHER"],
+  "attendance.read": ["OWNER", "BRANCH_ADMIN"],
+  "attendance.write": ["OWNER", "BRANCH_ADMIN"],
 
   // Деньги
   "payments.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
