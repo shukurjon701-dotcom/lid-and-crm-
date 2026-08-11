@@ -317,7 +317,17 @@ async function main() {
   };
 
   const groupIds = new Map<string, string>();
+  const createdGroupIds = new Set<string>();
   for (const group of groups) {
+    const existing = await prisma.group.findFirst({
+      where: { branchId: branch.id, name: group.name },
+      select: { id: true },
+    });
+    if (existing) {
+      groupIds.set(group.id, existing.id);
+      createdGroupIds.add(existing.id);
+      continue;
+    }
     const created = await prisma.group.create({
       data: {
         branchId: branch.id,
@@ -331,6 +341,7 @@ async function main() {
       },
     });
     groupIds.set(group.id, created.id);
+    createdGroupIds.add(created.id);
   }
 
   // ----------------------------------------------------------------- ученики
@@ -365,7 +376,8 @@ async function main() {
     studentIds.set(student.id, created.id);
     studentByName.set(student.full_name.toLowerCase().trim(), created.id);
 
-    const groupId = enrollment ? groupIds.get(enrollment.group) : null;
+    const mapped = enrollment ? groupIds.get(enrollment.group) : null;
+    const groupId = mapped && createdGroupIds.has(mapped) ? mapped : null;
     if (enrollment && groupId) {
       const attended = enrollment.attendance_present ?? 0;
       const joined = date(enrollment.enrolled_date) ?? new Date();

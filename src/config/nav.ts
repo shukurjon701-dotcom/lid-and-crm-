@@ -12,6 +12,12 @@ export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
   {
+    title: "Моё",
+    items: [
+      { label: "Мои результаты", hint: "Natijalarim", href: "/me", icon: "Award", permission: "dashboard.me" },
+    ],
+  },
+  {
     title: "Дашборды",
     items: [
       { label: "Обзор", hint: "Shtab", href: "/shtab", icon: "LayoutDashboard", permission: "dashboard.shtab" },

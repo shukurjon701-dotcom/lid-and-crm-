@@ -9,6 +9,9 @@ import type { Role } from "@/types/domain";
  * преподаватель) остаются — они пригодятся, когда появятся сотрудники.
  */
 export const PERMISSIONS = {
+  /** Личный кабинет — доступен каждому сотруднику */
+  "dashboard.me": ["OWNER", "BRANCH_ADMIN", "OPERATOR", "ACCOUNTANT", "TEACHER"],
+
   // Дашборды
   "dashboard.shtab": ["OWNER", "BRANCH_ADMIN"],
   "dashboard.admin": ["OWNER", "BRANCH_ADMIN"],
@@ -76,7 +79,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_HOME: Record<Role, string> = {
   OWNER: "/shtab",
   BRANCH_ADMIN: "/shtab",
-  OPERATOR: "/call-center",
+  OPERATOR: "/me",
   ACCOUNTANT: "/moliya",
-  TEACHER: "/groups",
+  TEACHER: "/me",
 };

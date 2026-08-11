@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Award,
   Banknote,
   Building2,
   CalendarCheck,
@@ -22,6 +23,7 @@ import {
 /** Явная карта вместо динамического импорта — так иконки попадают в бандл предсказуемо. */
 const ICONS: Record<string, LucideIcon> = {
   AlertTriangle,
+  Award,
   Banknote,
   Building2,
   CalendarCheck,

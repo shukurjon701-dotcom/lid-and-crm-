@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { KeyRound, User } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, User, UserPlus } from "lucide-react";
 import { APP } from "@/config/app";
 import { login, type LoginState } from "@/server/actions/auth";
 
@@ -76,12 +77,22 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-[11px] leading-relaxed text-ink-3">
-          Учётные записи администраторов: <b className="text-ink-2">admin1</b>,{" "}
-          <b className="text-ink-2">admin2</b>, <b className="text-ink-2">admin3</b>
-          <br />
-          пароль — логин с суффиксом <b className="text-ink-2">-2026</b>
-        </p>
+        {/* Отдельная кнопка, а не ссылка мелким шрифтом: сотрудник должен
+            сразу видеть, куда идти, если входит впервые. */}
+        <div className="card-shadow mt-4 rounded-[var(--radius-card)] bg-surface p-5 text-center">
+          <p className="text-[13px] font-bold">Первый раз здесь?</p>
+          <p className="mt-1 text-xs text-ink-3">
+            Найдите себя по имени и создайте вход — увидите свои результаты
+          </p>
+          <Link
+            href="/register"
+            className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface py-2.5 text-sm font-bold text-accent transition hover:border-accent"
+          >
+            <UserPlus className="size-4" strokeWidth={2.2} />
+            Зарегистрироваться
+          </Link>
+        </div>
+
       </div>
     </main>
   );

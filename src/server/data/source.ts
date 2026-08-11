@@ -23,7 +23,10 @@ async function getPrisma() {
 }
 
 export async function isDatabaseReady(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false;
+  if (!process.env.DATABASE_URL) {
+    warnOnce("DATABASE_URL не задана — показываю демо-данные");
+    return false;
+  }
   if (dbProbe && Date.now() - dbProbe.at < PROBE_TTL_MS) return dbProbe.ready;
 
   let ready = false;
@@ -31,11 +34,25 @@ export async function isDatabaseReady(): Promise<boolean> {
     const prisma = await getPrisma();
     await prisma.$queryRaw`SELECT 1`;
     ready = true;
-  } catch {
+  } catch (error) {
+    // Молчаливый откат на демо мешает понять, что случилось на сервере,
+    // поэтому причину пишем в лог — она видна в Render → Logs.
+    warnOnce(
+      `Не удалось подключиться к базе, показываю демо-данные: ${
+        error instanceof Error ? error.message.split("\n")[0] : String(error)
+      }`
+    );
     ready = false;
   }
   dbProbe = { at: Date.now(), ready };
   return ready;
+}
+
+let lastWarning = "";
+function warnOnce(message: string) {
+  if (message === lastWarning) return;
+  lastWarning = message;
+  console.warn(`[данные] ${message}`);
 }
 
 export async function findDbUserByLogin(login: string): Promise<{

@@ -361,3 +361,97 @@ function groupCount<T>(rows: T[], key: (row: T) => string) {
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value);
 }
+
+// =========================================================== ЛИЧНЫЙ КАБИНЕТ
+export type PersonalMetrics = ReturnType<typeof personalMetrics>;
+
+/**
+ * Показатели одного сотрудника — то, что он видит про себя.
+ *
+ * Связь с данными двойная: звонки и лиды приходят с его идентификатором,
+ * а группы и принятые оплаты — по имени, потому что в Sahab это текстовое поле.
+ */
+export function personalMetrics(
+  ds: Dataset,
+  user: { id: string; fullName: string; role: string },
+  now = new Date()
+) {
+  const p = periods(now);
+  const sameName = (value: string) =>
+    value.trim().toLowerCase() === user.fullName.trim().toLowerCase();
+
+  // ---- звонки
+  const myCalls = ds.calls.filter((c) => c.operatorId === user.id);
+  const callsToday = myCalls.filter((c) => inRange(c.calledAt, p.todayFrom, p.todayTo));
+  const callsYesterday = myCalls.filter((c) =>
+    inRange(c.calledAt, p.yesterdayFrom, p.todayFrom)
+  );
+  const callsMonth = myCalls.filter((c) => inRange(c.calledAt, p.monthFrom, p.todayTo));
+
+  // ---- лиды и визиты
+  const myLeads = ds.leads.filter((l) => l.operatorId === user.id);
+  const leadsToday = myLeads.filter((l) => inRange(l.createdAt, p.todayFrom, p.todayTo));
+  const leadsMonth = myLeads.filter((l) => inRange(l.createdAt, p.monthFrom, p.todayTo));
+  const myVisits = ds.visits.filter((v) => v.invitedById === user.id);
+  const visitsMonth = myVisits.filter((v) => inRange(v.scheduledAt, p.monthFrom, p.todayTo));
+
+  // ---- преподавание
+  const myGroups = ds.groups.filter((g) => sameName(g.teacherName));
+  const myGroupIds = new Set(myGroups.map((g) => g.id));
+  const myStudents = ds.students.filter(
+    (s) => myGroupIds.has(s.groupId) && s.status !== "LEFT"
+  );
+
+  // ---- принятые оплаты
+  const myPayments = ds.payments.filter((x) => sameName(x.receivedByName));
+  const paymentsMonth = myPayments.filter((x) => inRange(x.paidAt, p.monthFrom, p.todayTo));
+  const paymentsToday = myPayments.filter((x) => inRange(x.paidAt, p.todayFrom, p.todayTo));
+
+  // ---- место в рейтинге операторов за сегодня
+  const board = ds.operators
+    .map((o) => ({
+      id: o.id,
+      name: o.name,
+      calls: ds.calls.filter(
+        (c) => c.operatorId === o.id && inRange(c.calledAt, p.todayFrom, p.todayTo)
+      ).length,
+    }))
+    .filter((o) => o.calls > 0)
+    .sort((a, b) => b.calls - a.calls);
+  const place = board.findIndex((o) => o.id === user.id);
+
+  return {
+    hasCalls: myCalls.length > 0,
+    hasGroups: myGroups.length > 0,
+    hasPayments: myPayments.length > 0,
+
+    callsToday: callsToday.length,
+    callsTodayDelta: delta(callsToday.length, callsYesterday.length),
+    callsMonth: callsMonth.length,
+    callsTotal: myCalls.length,
+    lessonsToday: callsToday.filter((c) => c.isLesson).length,
+    talkMinutesToday: Math.round(sumBy(callsToday, (c) => c.durationSeconds) / 60),
+    talkMinutesMonth: Math.round(sumBy(callsMonth, (c) => c.durationSeconds) / 60),
+
+    leadsToday: leadsToday.length,
+    leadsMonth: leadsMonth.length,
+    qualifiedMonth: leadsMonth.filter((l) => l.isQualified).length,
+    convertedMonth: leadsMonth.filter((l) => l.status === "CONVERTED").length,
+
+    visitsMonth: visitsMonth.length,
+    visitsArrived: visitsMonth.filter((v) => v.didArrive).length,
+
+    groups: myGroups,
+    studentsCount: myStudents.length,
+    debtorsCount: myStudents.filter(isDebtor).length,
+
+    paymentsTodayAmount: money(paymentsToday),
+    paymentsMonthAmount: money(paymentsMonth),
+    paymentsMonthCount: paymentsMonth.length,
+
+    place: place >= 0 ? place + 1 : null,
+    boardSize: board.length,
+    recentCalls: [...callsToday].sort((a, b) => +b.calledAt - +a.calledAt).slice(0, 8),
+    recentLeads: [...leadsMonth].sort((a, b) => +b.createdAt - +a.createdAt).slice(0, 8),
+  };
+}

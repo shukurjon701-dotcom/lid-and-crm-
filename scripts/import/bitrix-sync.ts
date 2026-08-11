@@ -8,6 +8,7 @@
  * Bitrix — источник по работе call-центра. Ученики и деньги берутся из Sahab,
  * поэтому здесь переписываются только лиды, звонки и визиты.
  */
+import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import type { LeadSource, LeadStatus } from "@/types/domain";
 
@@ -72,12 +73,20 @@ function webhook(): string {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function call<T>(method: string, params: Record<string, unknown> = {}) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const response = await fetch(`${webhook()}/${method}.json`, {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(`${webhook()}/${method}.json`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
-    });
+      });
+    } catch {
+      // обрыв связи на длинной выгрузке — ждём и пробуем снова
+      if (attempt === 5) throw new Error(`${method}: связь с Bitrix потеряна`);
+      await sleep(attempt * 3000);
+      continue;
+    }
     const data = (await response.json()) as {
       result?: T;
       total?: number;
@@ -87,7 +96,7 @@ async function call<T>(method: string, params: Record<string, unknown> = {}) {
     };
     if (!data.error) return data;
     // QUERY_LIMIT_EXCEEDED — подождать и повторить
-    if (attempt < 3 && /LIMIT|OVERLOAD/i.test(data.error)) {
+    if (attempt < 5 && /LIMIT|OVERLOAD/i.test(data.error)) {
       await sleep(attempt * 2000);
       continue;
     }
@@ -240,7 +249,11 @@ async function main() {
 
   // ---------------------------------------------------------------- лиды
   console.log("Записываю лиды...");
-  const leadIdByBitrix = new Map<string, string>();
+
+  // Пакетная вставка: при работе с удалённой базой тысячи отдельных запросов
+  // рвут соединение, поэтому пишем пачками по 500 строк.
+  const leadRows: unknown[] = [];
+  const visitRows: unknown[] = [];
 
   for (const lead of leads) {
     const statusId = String(lead.STATUS_ID);
@@ -249,57 +262,65 @@ async function main() {
     const phones = Array.isArray(lead.PHONE)
       ? (lead.PHONE as { VALUE?: string }[]).map((p) => p.VALUE).filter(Boolean)
       : [];
-
     const fullName =
       [lead.NAME, lead.LAST_NAME].filter(Boolean).join(" ").trim() ||
       String(lead.TITLE ?? "").trim() ||
       "Без имени";
 
-    const created = await prisma.lead.create({
-      data: {
-        branchId: branch.id,
-        fullName: fullName.slice(0, 180),
-        phone: phones[0] ?? "—",
-        source: SOURCE_MAP[String(lead.SOURCE_ID)] ?? "OTHER",
-        status,
-        isQualified: !NOT_QUALIFIED.has(statusId),
-        operatorId: operatorByBitrixId.get(String(lead.ASSIGNED_BY_ID)) ?? fallback.id,
-        createdAt,
-        convertedAt: status === "CONVERTED" ? (asDate(lead.DATE_MODIFY) ?? createdAt) : null,
-        comment: `Bitrix24 #${lead.ID}`,
-      },
-    });
-    leadIdByBitrix.set(String(lead.ID), created.id);
+    const id = randomUUID();
+    const operatorId = operatorByBitrixId.get(String(lead.ASSIGNED_BY_ID)) ?? fallback.id;
 
-    // Записан на пробный или уже был — это визит (Tashrif)
+    leadRows.push({
+      id,
+      branchId: branch.id,
+      fullName: fullName.slice(0, 180),
+      phone: phones[0] ?? "—",
+      source: SOURCE_MAP[String(lead.SOURCE_ID)] ?? "OTHER",
+      status,
+      isQualified: !NOT_QUALIFIED.has(statusId),
+      operatorId,
+      createdAt,
+      convertedAt: status === "CONVERTED" ? (asDate(lead.DATE_MODIFY) ?? createdAt) : null,
+      comment: `Bitrix24 #${lead.ID}`,
+    });
+
     if (status === "VISIT_PLANNED" || status === "VISITED" || status === "CONVERTED") {
       const arrived = status !== "VISIT_PLANNED";
-      await prisma.visit.create({
-        data: {
-          branchId: branch.id,
-          leadId: created.id,
-          invitedById: operatorByBitrixId.get(String(lead.ASSIGNED_BY_ID)) ?? fallback.id,
-          scheduledAt: asDate(lead.DATE_MODIFY) ?? createdAt,
-          arrivedAt: arrived ? (asDate(lead.DATE_MODIFY) ?? createdAt) : null,
-          didArrive: arrived,
-          resultSale: status === "CONVERTED",
-          note: ONLINE_STATUSES.has(statusId) ? "Online sinov" : "Offline sinov",
-        },
+      const at = asDate(lead.DATE_MODIFY) ?? createdAt;
+      visitRows.push({
+        branchId: branch.id,
+        leadId: id,
+        invitedById: operatorId,
+        scheduledAt: at,
+        arrivedAt: arrived ? at : null,
+        didArrive: arrived,
+        resultSale: status === "CONVERTED",
+        note: ONLINE_STATUSES.has(statusId) ? "Online sinov" : "Offline sinov",
       });
     }
   }
 
+  const chunk = <T>(rows: T[], size = 500) =>
+    Array.from({ length: Math.ceil(rows.length / size) }, (_, i) =>
+      rows.slice(i * size, (i + 1) * size)
+    );
+
+  for (const part of chunk(leadRows)) {
+    await prisma.lead.createMany({ data: part as never, skipDuplicates: true });
+  }
+  for (const part of chunk(visitRows)) {
+    await prisma.visit.createMany({ data: part as never, skipDuplicates: true });
+  }
+
   // -------------------------------------------------------------- звонки
   console.log("Записываю звонки...");
-  let written = 0;
-  for (const item of calls) {
-    const startedAt = asDate(item.CALL_START_DATE);
-    if (!startedAt) continue;
-    const duration = Number(item.CALL_DURATION ?? 0);
-    const failed = String(item.CALL_FAILED_CODE ?? "200") !== "200";
-
-    await prisma.callLog.create({
-      data: {
+  const callRows = calls
+    .map((item) => {
+      const startedAt = asDate(item.CALL_START_DATE);
+      if (!startedAt) return null;
+      const duration = Number(item.CALL_DURATION ?? 0);
+      const failed = String(item.CALL_FAILED_CODE ?? "200") !== "200";
+      return {
         branchId: branch.id,
         operatorId: operatorByBitrixId.get(String(item.PORTAL_USER_ID)) ?? fallback.id,
         phone: String(item.PHONE_NUMBER ?? "—"),
@@ -309,14 +330,18 @@ async function main() {
         isLesson: duration >= LESSON_SECONDS,
         calledAt: startedAt,
         recordingUrl: (item.CALL_RECORD_URL as string) || null,
-      },
-    });
-    written++;
+      };
+    })
+    .filter(Boolean);
+
+  for (const part of chunk(callRows, 1000)) {
+    await prisma.callLog.createMany({ data: part as never, skipDuplicates: true });
   }
+  const written = callRows.length;
 
   console.log("\n─────────────── Загружено ───────────────");
   console.log(`  Операторы  ${operatorByBitrixId.size}`);
-  console.log(`  Лиды       ${leadIdByBitrix.size} (целевых ${qualified})`);
+  console.log(`  Лиды       ${leadRows.length} (целевых ${qualified})`);
   console.log(`  Звонки     ${written}`);
   console.log(`  Визиты     ${await prisma.visit.count()}`);
   console.log("\nОткройте http://localhost:3000/call-center\n");
