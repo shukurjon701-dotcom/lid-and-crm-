@@ -4,11 +4,15 @@ services:
     env: node
     plan: free
     region: frankfurt
-    buildCommand: npm install && npm run build
+    # Схема применяется в сборке, а не в postDeployCommand: на бесплатном
+    # плане пост-деплойная команда не выполняется, и приложение уходило в
+    # демо-данные, потому что в базе не было новых колонок.
+    #
+    # `db push` только добавляет недостающее и падает на разрушающих правках,
+    # а наполнение демо-данными (db:seed) стирает базу — его на боевой базе
+    # запускать нельзя.
+    buildCommand: npm install && npx prisma db push && npm run build
     startCommand: npm run start -- --hostname 0.0.0.0 --port $PORT
-    # Только схема. Наполнение демо-данными (db:seed) стирает базу —
-    # на боевой базе его запускать нельзя.
-    postDeployCommand: npx prisma db push
     envVars:
       - key: NODE_ENV
         value: production
