@@ -22,6 +22,7 @@
     "import:bitrix": "tsx --env-file=.env scripts/import/bitrix.ts",
     "import:books": "tsx --env-file=.env scripts/import/books.ts",
     "sync:bitrix": "tsx --env-file=.env scripts/import/bitrix-sync.ts",
+    "sync:pbx": "tsx --env-file=.env scripts/import/pbx.ts",
     "users:reset": "tsx --env-file=.env scripts/reset-logins.ts",
     "users:drop": "tsx --env-file=.env scripts/drop-logins.ts"
   },

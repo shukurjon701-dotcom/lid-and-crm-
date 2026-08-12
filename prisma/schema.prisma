@@ -203,6 +203,10 @@ model User {
   role         Role
   avatarUrl    String?
 
+  /// Внутренний номер в АТС onlinePBX (101, 102, ...). По нему звонок
+  /// из истории АТС ложится на конкретного оператора.
+  pbxExtension String? @unique
+
   // Домашний филиал. Для OWNER — филиал по умолчанию при входе.
   branchId String
   branch   Branch @relation("UserHomeBranch", fields: [branchId], references: [id])
@@ -317,6 +321,10 @@ model CallLog {
 
   studentId String?
   student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  /// uuid звонка в onlinePBX. Повторная выгрузка того же периода
+  /// не задваивает историю.
+  externalId String? @unique
 
   type            CallType   @default(OUTGOING)
   result          CallResult

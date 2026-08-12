@@ -52,9 +52,6 @@ const SOURCE_MAP: Record<string, LeadSource> = {
   TRADE_SHOW: "WALK_IN",
 };
 
-/** Разговор дольше пяти минут считаем консультацией. */
-const LESSON_SECONDS = 300;
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function bitrix<T>(method: string, params: Record<string, unknown> = {}) {
@@ -109,7 +106,6 @@ const asDate = (value: unknown) => {
 };
 
 export type RefreshResult = {
-  calls: number;
   leads: number;
   visits: number;
   since: Date;
@@ -162,18 +158,13 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
   const operatorId = (bitrixUserId: unknown) =>
     staff.get(String(bitrixUserId)) ?? fallback.id;
 
-  const [calls, leads] = await Promise.all([
-    bitrixAll("voximplant.statistic.get", {
-      FILTER: { ">=CALL_START_DATE": sinceIso },
-      SORT: "CALL_START_DATE",
-      ORDER: "DESC",
-    }),
-    bitrixAll("crm.lead.list", {
-      filter: { ">=DATE_CREATE": sinceIso },
-      select: ["ID", "TITLE", "NAME", "LAST_NAME", "STATUS_ID", "SOURCE_ID", "ASSIGNED_BY_ID", "DATE_CREATE", "DATE_MODIFY", "PHONE"],
-      order: { DATE_CREATE: "DESC" },
-    }),
-  ]);
+  // Звонки берутся из onlinePBX (src/server/sync/pbx.ts): в Битрикс попадала
+  // лишь часть вызовов и нередко с чужим владельцем.
+  const leads = await bitrixAll("crm.lead.list", {
+    filter: { ">=DATE_CREATE": sinceIso },
+    select: ["ID", "TITLE", "NAME", "LAST_NAME", "STATUS_ID", "SOURCE_ID", "ASSIGNED_BY_ID", "DATE_CREATE", "DATE_MODIFY", "PHONE"],
+    order: { DATE_CREATE: "DESC" },
+  });
 
   // Заменяем только свежее окно — история остаётся нетронутой
   const leadIds = (
@@ -186,7 +177,6 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
   await prisma.$transaction([
     prisma.visit.deleteMany({ where: { leadId: { in: leadIds } } }),
     prisma.lead.deleteMany({ where: { id: { in: leadIds } } }),
-    prisma.callLog.deleteMany({ where: { branchId: branch.id, calledAt: { gte: since } } }),
   ]);
 
   const leadRows: unknown[] = [];
@@ -237,26 +227,6 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
     }
   }
 
-  const callRows = calls
-    .map((item) => {
-      const startedAt = asDate(item.CALL_START_DATE);
-      if (!startedAt) return null;
-      const duration = Number(item.CALL_DURATION ?? 0);
-      const failed = String(item.CALL_FAILED_CODE ?? "200") !== "200";
-      return {
-        branchId: branch.id,
-        operatorId: operatorId(item.PORTAL_USER_ID),
-        phone: String(item.PHONE_NUMBER ?? "—"),
-        type: String(item.CALL_TYPE) === "2" ? "INCOMING" : "OUTGOING",
-        result: failed ? "NO_ANSWER" : duration > 0 ? "ANSWERED" : "NO_ANSWER",
-        durationSeconds: duration,
-        isLesson: duration >= LESSON_SECONDS,
-        calledAt: startedAt,
-        recordingUrl: (item.CALL_RECORD_URL as string) || null,
-      };
-    })
-    .filter(Boolean);
-
   const chunk = <T>(rows: T[], size: number) =>
     Array.from({ length: Math.ceil(rows.length / size) }, (_, i) =>
       rows.slice(i * size, (i + 1) * size)
@@ -268,12 +238,7 @@ export async function refreshBitrix(days = 3): Promise<RefreshResult> {
   for (const part of chunk(visitRows, 500)) {
     await prisma.visit.createMany({ data: part as never, skipDuplicates: true });
   }
-  for (const part of chunk(callRows, 1000)) {
-    await prisma.callLog.createMany({ data: part as never, skipDuplicates: true });
-  }
-
   return {
-    calls: callRows.length,
     leads: leadRows.length,
     visits: visitRows.length,
     since,

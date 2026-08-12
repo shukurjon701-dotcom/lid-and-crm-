@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { refreshBitrix, refreshSahabFinance } from "@/server/sync/refresh";
+import { isPbxConfigured, refreshPbxCalls } from "@/server/sync/pbx";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Обновление данных Bitrix.
+ * Обновление данных: лиды и визиты из Bitrix, звонки из onlinePBX,
+ * деньги из Sahab.
  *
  * Вызывается двумя способами:
  *   кнопкой в интерфейсе — тогда проверяется сессия сотрудника;
@@ -32,12 +34,16 @@ async function handle(request: Request) {
       refreshBitrix(days),
       refreshSahabFinance(),
     ]);
+    // Звонки тянем после лидов: свежий лид нужен, чтобы привязать к нему разговор.
+    const pbx = isPbxConfigured() ? await refreshPbxCalls(days) : null;
+
     return NextResponse.json({
       ok: true,
       ...bitrix,
       ...finance,
+      ...pbx,
       message:
-        `Обновлено: ${bitrix.calls} звонков, ${bitrix.leads} лидов, ` +
+        `Обновлено: ${pbx ? pbx.pbxCalls : 0} звонков, ${bitrix.leads} лидов, ` +
         `${finance.payments} платежей, ${finance.expenses} расходов`,
     });
   } catch (error) {

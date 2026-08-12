@@ -12,6 +12,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Без этого сервер живёт по UTC и «показатели за сегодня»
+      # начинаются в 5 утра по Ташкенту.
+      - key: TZ
+        value: Asia/Tashkent
       - key: DATABASE_URL
         sync: false
       - key: AUTH_SECRET
@@ -22,3 +26,8 @@ services:
         value: ru-RU
       - key: USE_MOCK_DATA
         value: "false"
+      # Виртуальная АТС onlinePBX — источник звонков call-центра
+      - key: PBX_DOMAIN
+        sync: false
+      - key: PBX_API_KEY
+        sync: false
