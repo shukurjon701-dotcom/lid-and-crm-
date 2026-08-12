@@ -63,6 +63,20 @@ const daysAgo = (n: number) => {
 };
 
 async function main() {
+  // Заполнение демо-данными стирает базу целиком, поэтому на боевой базе
+  // (там уже есть сотрудники и ученики из Sahab и Bitrix) оно не запускается.
+  // Перезаписать нарочно: npm run db:seed -- --force
+  if (!process.argv.includes("--force")) {
+    const [students, users] = await Promise.all([prisma.student.count(), prisma.user.count()]);
+    if (students > 0 || users > ADMINS.length) {
+      console.log(
+        `\nВ базе уже есть данные (учеников ${students}, сотрудников ${users}) — ` +
+          "демо-наполнение пропущено.\nНужно всё-таки перезаписать: npm run db:seed -- --force\n"
+      );
+      return;
+    }
+  }
+
   console.log("Очистка базы...");
   await prisma.$transaction([
     prisma.auditLog.deleteMany(),
