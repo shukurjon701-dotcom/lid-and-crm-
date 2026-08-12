@@ -1,15 +1,19 @@
 /**
- * Расходы на книги из отдельной таблицы.
+ * Склад книг из отдельной таблицы.
  *
  *   npm run import:books -- --dry-run     # посмотреть, ничего не записывая
- *   npm run import:books                  # закупки книг → расходы
- *   npm run import:books -- --with-sales  # плюс продажи книг → приход
+ *   npm run import:books                  # книги, остатки, закупки и продажи
+ *
+ * Книги больше не смешиваются с расходами центра: у учебника есть остаток,
+ * закупочная и продажная цена — всё это живёт в моделях Book / BookMovement
+ * и показывается в разделе «Книги». Прежние книжные записи в расходах и
+ * платежах импорт удаляет.
  *
  * Таблица: BOOKS_SHEET_ID в .env. Листы:
- *   BUYURTMA       закупка у поставщика  → расход
- *   SOTUV          продажа ученикам      → приход (только с --with-sales)
- *   OMBOR          остатки склада        — не переносим
- *   KITOB MOLIYASI сводка по дням        — не переносим
+ *   OMBOR          склад: остаток и цены     → Book
+ *   BUYURTMA       закупка у поставщика      → BookMovement (PURCHASE)
+ *   SOTUV          продажа ученикам          → BookMovement (SALE)
+ *   KITOB MOLIYASI сводка по дням            — не переносим, считается сама
  */
 import { PrismaClient } from "@prisma/client";
 import { cell, readXlsx } from "./xlsx";
@@ -18,12 +22,24 @@ import { toDate, toNumber, toPaymentMethod } from "./csv";
 const prisma = new PrismaClient();
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const WITH_SALES = process.argv.includes("--with-sales");
 const BRANCH_ID = "branch-main";
-const CATEGORY = "Kitoblar (книги)";
+/** Статья расходов, в которую книги попадали раньше */
+const LEGACY_CATEGORY = "Kitoblar (книги)";
 
 type Purchase = { date: Date; title: string; count: number; unitCost: number; amount: number; method: string };
-type Sale = { date: Date; buyer: string; title: string; count: number; amount: number; method: string };
+type Sale = { date: Date; buyer: string; title: string; count: number; unitPrice: number; amount: number; method: string };
+type Stock = { title: string; opening: number; sold: number; left: number; unitCost: number; salePrice: number };
+
+/** Ключ сопоставления названий между листами: регистр, апострофы и пробелы не важны. */
+const key = (title: string) =>
+  title.toLowerCase().replace(/[’'`ʼ]/g, "").replace(/\s+/g, " ").trim();
+
+/** Строки-разделители («IYUL»), шапки и мусорные нули складом не являются. */
+const isTitle = (value: string) =>
+  value !== "" && value !== "0" && !/^kitob nomi$/i.test(value);
+
+const sum = (rows: { amount: number }[]) => rows.reduce((a, r) => a + r.amount, 0);
+const money = (value: number) => value.toLocaleString("ru-RU");
 
 async function main() {
   const id = process.env.BOOKS_SHEET_ID;
@@ -48,8 +64,7 @@ async function main() {
   for (const row of find("BUYURTMA")) {
     const date = toDate(cell(row, "A"));
     const title = cell(row, "B");
-    // строки-разделители месяцев («IYUL») и шапка идут без даты
-    if (!date || !title || title.toLowerCase() === "kitob nomi") continue;
+    if (!date || !isTitle(title)) continue;
 
     const count = toNumber(cell(row, "C"));
     const unitCost = toNumber(cell(row, "D"));
@@ -64,43 +79,137 @@ async function main() {
   for (const row of find("SOTUV")) {
     const date = toDate(cell(row, "A"));
     const title = cell(row, "C");
-    if (!date || !title || title.toLowerCase() === "kitob nomi") continue;
+    if (!date || !isTitle(title)) continue;
 
-    const amount = toNumber(cell(row, "F")) || toNumber(cell(row, "E")) * toNumber(cell(row, "D"));
+    const count = toNumber(cell(row, "D")) || 1;
+    const unitPrice = toNumber(cell(row, "E"));
+    const amount = toNumber(cell(row, "F")) || count * unitPrice;
     if (amount <= 0) continue;
 
     sales.push({
       date,
       buyer: cell(row, "B"),
       title,
-      count: toNumber(cell(row, "D")),
+      count,
+      unitPrice: unitPrice || amount / count,
       amount,
       method: cell(row, "G"),
     });
   }
 
-  const sum = (rows: { amount: number }[]) => rows.reduce((a, r) => a + r.amount, 0);
-  const period = (rows: { date: Date }[]) =>
-    rows.length === 0
-      ? "—"
-      : `${new Date(Math.min(...rows.map((r) => +r.date))).toLocaleDateString("ru-RU")} — ` +
-        `${new Date(Math.max(...rows.map((r) => +r.date))).toLocaleDateString("ru-RU")}`;
+  // --------------------------------------------------------------- склад
+  // Колонки: A название, B начальный остаток, C заказано, D всего,
+  // E продано, F остаток, G закупочная цена, H цена продажи.
+  // Часть цен в таблице не заполнена — там стоит текст статуса, и toNumber
+  // возвращает 0. Такие цены достраиваем из закупок и продаж.
+  const stocks: Stock[] = [];
+  for (const row of find("OMBOR")) {
+    const title = cell(row, "A");
+    if (!isTitle(title)) continue;
+    stocks.push({
+      title,
+      opening: toNumber(cell(row, "B")),
+      sold: toNumber(cell(row, "E")),
+      left: toNumber(cell(row, "F")),
+      unitCost: toNumber(cell(row, "G")),
+      salePrice: toNumber(cell(row, "H")),
+    });
+  }
 
-  console.log(`\nЗакупки книг: ${purchases.length} строк на ${sum(purchases).toLocaleString("ru-RU")} сум`);
-  console.log(`   период: ${period(purchases)}`);
-  console.log(`Продажи книг: ${sales.length} строк на ${sum(sales).toLocaleString("ru-RU")} сум`);
-  console.log(`   период: ${period(sales)}`);
-  console.log(
-    `\nЗаработок на книгах: ${(sum(sales) - sum(purchases)).toLocaleString("ru-RU")} сум` +
-      (WITH_SALES ? "" : "  (продажи не переносятся — добавьте --with-sales)")
+  // ------------------------------------------------------ сводка по книгам
+  type Book = {
+    title: string;
+    unitCost: number;
+    salePrice: number;
+    stock: number;
+    openingStock: number;
+    purchasedCount: number;
+    soldCount: number;
+    purchasedAmount: number;
+    soldAmount: number;
+    lastPurchaseAt: Date | null;
+    lastSaleAt: Date | null;
+  };
+
+  const books = new Map<string, Book>();
+  const book = (title: string) => {
+    const k = key(title);
+    const existing = books.get(k);
+    if (existing) return existing;
+    const created: Book = {
+      title: title.trim(),
+      unitCost: 0,
+      salePrice: 0,
+      stock: 0,
+      openingStock: 0,
+      purchasedCount: 0,
+      soldCount: 0,
+      purchasedAmount: 0,
+      soldAmount: 0,
+      lastPurchaseAt: null,
+      lastSaleAt: null,
+    };
+    books.set(k, created);
+    return created;
+  };
+
+  // Склад — главный источник названий, остатков и цен
+  for (const stock of stocks) {
+    const item = book(stock.title);
+    item.title = stock.title.trim();
+    item.openingStock = stock.opening;
+    item.stock = stock.left;
+    item.unitCost = stock.unitCost;
+    item.salePrice = stock.salePrice;
+  }
+
+  for (const purchase of purchases) {
+    const item = book(purchase.title);
+    item.purchasedCount += purchase.count;
+    item.purchasedAmount += purchase.amount;
+    if (!item.lastPurchaseAt || purchase.date > item.lastPurchaseAt) {
+      item.lastPurchaseAt = purchase.date;
+      if (purchase.unitCost > 0 && item.unitCost === 0) item.unitCost = purchase.unitCost;
+    }
+  }
+
+  for (const sale of sales) {
+    const item = book(sale.title);
+    item.soldCount += sale.count;
+    item.soldAmount += sale.amount;
+    if (!item.lastSaleAt || sale.date > item.lastSaleAt) {
+      item.lastSaleAt = sale.date;
+      if (sale.unitPrice > 0 && item.salePrice === 0) item.salePrice = Math.round(sale.unitPrice);
+    }
+  }
+
+  // Книга, которой нет на листе склада: остаток считаем по движениям
+  const onStock = new Set(stocks.map((s) => key(s.title)));
+  for (const [k, item] of books) {
+    if (onStock.has(k)) continue;
+    item.stock = Math.max(0, item.purchasedCount - item.soldCount);
+  }
+
+  const stockUnits = [...books.values()].reduce((a, b) => a + Math.max(b.stock, 0), 0);
+  const stockValue = [...books.values()].reduce(
+    (a, b) => a + Math.max(b.stock, 0) * b.unitCost,
+    0
   );
+  const profit = [...books.values()].reduce((a, b) => a + b.soldAmount - b.soldCount * b.unitCost, 0);
+
+  console.log(`\nКниг в таблице: ${books.size}`);
+  console.log(`Закупки: ${purchases.length} строк на ${money(sum(purchases))} сум`);
+  console.log(`Продажи: ${sales.length} строк на ${money(sum(sales))} сум`);
+  console.log(`На складе: ${money(stockUnits)} шт на ${money(stockValue)} сум`);
+  console.log(`Заработок на книгах: ${money(Math.round(profit))} сум`);
 
   if (DRY_RUN) {
-    console.log("\nПервые закупки:");
-    for (const p of purchases.slice(0, 5)) {
+    console.log("\nСклад:");
+    for (const item of [...books.values()].sort((a, b) => a.stock - b.stock).slice(0, 12)) {
       console.log(
-        `   ${p.date.toLocaleDateString("ru-RU")}  ${p.title.padEnd(26).slice(0, 26)} ` +
-          `${p.count} шт × ${p.unitCost.toLocaleString("ru-RU")} = ${p.amount.toLocaleString("ru-RU")}`
+        `   ${item.title.padEnd(28).slice(0, 28)} остаток ${String(item.stock).padStart(4)} шт  ` +
+          `закупка ${money(item.unitCost).padStart(8)}  продажа ${money(item.salePrice).padStart(8)}  ` +
+          `продано ${item.soldCount} шт`
       );
     }
     console.log("\n--dry-run: в базу ничего не записано.\n");
@@ -109,73 +218,102 @@ async function main() {
 
   // ------------------------------------------------------------- запись
   const branch = await prisma.branch.findUniqueOrThrow({ where: { id: BRANCH_ID } });
-  const admin = await prisma.user.findFirstOrThrow({
-    where: { branchId: branch.id, role: "BRANCH_ADMIN" },
+
+  // Прежние книжные записи в финансах: теперь у книг свой раздел
+  const legacy = await prisma.expenseCategory.findFirst({
+    where: { branchId: branch.id, name: LEGACY_CATEGORY },
+    select: { id: true },
   });
+  let removedExpenses = 0;
+  if (legacy) {
+    removedExpenses = (
+      await prisma.expense.deleteMany({ where: { branchId: branch.id, categoryId: legacy.id } })
+    ).count;
+    await prisma.expenseCategory.delete({ where: { id: legacy.id } });
+  }
+  const removedPayments = (
+    await prisma.payment.deleteMany({
+      where: { branchId: branch.id, comment: { startsWith: "Kitob sotuvi" } },
+    })
+  ).count;
 
-  const category =
-    (await prisma.expenseCategory.findFirst({ where: { branchId: branch.id, name: CATEGORY } })) ??
-    (await prisma.expenseCategory.create({ data: { branchId: branch.id, name: CATEGORY } }));
+  // Таблица — источник правды: перезаписываем склад целиком
+  await prisma.bookMovement.deleteMany({ where: { branchId: branch.id } });
+  await prisma.book.deleteMany({ where: { branchId: branch.id } });
 
-  // Повторный запуск не должен задваивать: чистим прежние книжные записи
-  await prisma.expense.deleteMany({ where: { branchId: branch.id, categoryId: category.id } });
-  await prisma.payment.deleteMany({
-    where: { branchId: branch.id, comment: { startsWith: "Kitob sotuvi" } },
-  });
-
-  for (const purchase of purchases) {
-    await prisma.expense.create({
+  const ids = new Map<string, string>();
+  for (const [k, item] of books) {
+    const created = await prisma.book.create({
       data: {
         branchId: branch.id,
-        categoryId: category.id,
-        title: `Книги: ${purchase.title}${purchase.count ? ` — ${purchase.count} шт` : ""}`,
-        amount: purchase.amount,
-        method: toPaymentMethod(purchase.method),
-        createdById: admin.id,
-        spentAt: purchase.date,
-        description: purchase.unitCost
-          ? `Закупочная цена ${purchase.unitCost.toLocaleString("ru-RU")} сум за штуку`
-          : null,
+        title: item.title,
+        unitCost: item.unitCost,
+        salePrice: item.salePrice,
+        stock: item.stock,
+        openingStock: item.openingStock,
+        purchasedCount: item.purchasedCount,
+        soldCount: item.soldCount,
+        purchasedAmount: item.purchasedAmount,
+        soldAmount: item.soldAmount,
+        lastPurchaseAt: item.lastPurchaseAt,
+        lastSaleAt: item.lastSaleAt,
       },
+      select: { id: true },
     });
+    ids.set(k, created.id);
   }
 
-  let salesWritten = 0;
-  if (WITH_SALES) {
-    for (const sale of sales) {
-      await prisma.payment.create({
-        data: {
-          branchId: branch.id,
-          amount: sale.amount,
-          method: toPaymentMethod(sale.method),
-          receivedById: admin.id,
-          paidAt: sale.date,
-          comment: `Kitob sotuvi: ${sale.title}${sale.buyer ? ` — ${sale.buyer}` : ""}`,
-        },
-      });
-      salesWritten++;
-    }
+  const movements = [
+    ...purchases.map((p) => ({
+      branchId: branch.id,
+      bookId: ids.get(key(p.title))!,
+      kind: "PURCHASE" as const,
+      quantity: p.count,
+      unitPrice: p.unitCost || (p.count ? p.amount / p.count : 0),
+      amount: p.amount,
+      method: toPaymentMethod(p.method),
+      counterparty: null,
+      happenedAt: p.date,
+    })),
+    ...sales.map((s) => ({
+      branchId: branch.id,
+      bookId: ids.get(key(s.title))!,
+      kind: "SALE" as const,
+      quantity: s.count,
+      unitPrice: s.unitPrice,
+      amount: s.amount,
+      method: toPaymentMethod(s.method),
+      counterparty: s.buyer || null,
+      happenedAt: s.date,
+    })),
+  ];
+
+  for (let i = 0; i < movements.length; i += 500) {
+    await prisma.bookMovement.createMany({ data: movements.slice(i, i + 500) });
   }
 
   await prisma.auditLog.create({
     data: {
       branchId: branch.id,
-      actorName: "Импорт из таблицы книг",
-      action: "EXPENSE_CREATE",
-      entity: "Expense",
-      entityId: category.id,
-      entityLabel: `Книги — ${purchases.length} закупок на ${sum(purchases).toLocaleString("ru-RU")} сум`,
-      reason: "Перенесено из таблицы расходов на книги",
+      actorName: "Импорт таблицы книг",
+      action: "CREATE",
+      entity: "Book",
+      entityId: branch.id,
+      entityLabel: `Склад книг — ${books.size} наименований, ${money(stockUnits)} шт`,
+      reason: "Загружено из таблицы книг",
     },
   });
 
   console.log(`\n─────────────── Загружено ───────────────`);
-  console.log(`  Расходы на книги  ${purchases.length} на ${sum(purchases).toLocaleString("ru-RU")} сум`);
-  console.log(
-    `  Продажи книг      ${salesWritten}` +
-      (WITH_SALES ? ` на ${sum(sales).toLocaleString("ru-RU")} сум` : " (не переносились)")
-  );
-  console.log("\nОткройте http://localhost:3000/moliya\n");
+  console.log(`  Книг              ${books.size}`);
+  console.log(`  Закупок           ${purchases.length} на ${money(sum(purchases))} сум`);
+  console.log(`  Продаж            ${sales.length} на ${money(sum(sales))} сум`);
+  if (removedExpenses || removedPayments) {
+    console.log(
+      `  Убрано из финансов: расходов ${removedExpenses}, платежей ${removedPayments}`
+    );
+  }
+  console.log("\nОткройте http://localhost:3000/books\n");
 }
 
 main()

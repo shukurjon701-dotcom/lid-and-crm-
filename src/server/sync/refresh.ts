@@ -285,7 +285,6 @@ void API_BASE;
 
 // ====================================================== ФИНАНСЫ ИЗ SAHAB
 const SAHAB_API = "https://api.sahab.uz/api/v1";
-const BOOKS_CATEGORY = "Kitoblar (книги)";
 
 async function sahabToken() {
   const tenant = process.env.SAHAB_DOMAIN || "arabicacademy.sahab.uz";
@@ -363,8 +362,8 @@ export type FinanceResult = { payments: number; expenses: number };
 
 /**
  * Платежи и расходы из Sahab. Их немного (сотни строк), поэтому проще
- * переписать целиком, чем вычислять разницу. Книжные расходы не трогаем —
- * они приходят из отдельной таблицы.
+ * переписать целиком, чем вычислять разницу. Книги здесь не участвуют:
+ * у них свой склад (модели Book / BookMovement) и свой импорт.
  */
 export async function refreshSahabFinance(): Promise<FinanceResult> {
   if (!process.env.SAHAB_PHONE || !process.env.SAHAB_PASSWORD) {
@@ -391,20 +390,10 @@ export async function refreshSahabFinance(): Promise<FinanceResult> {
   const whoever = (name: unknown) =>
     staffByName.get(String(name ?? "").trim().toLowerCase()) ?? admin.id;
 
-  const books = await prisma.expenseCategory.findFirst({
-    where: { branchId: branch.id, name: BOOKS_CATEGORY },
-    select: { id: true },
-  });
-
   await prisma.$transaction([
     prisma.paymentAllocation.deleteMany(),
     prisma.payment.deleteMany({ where: { branchId: branch.id } }),
-    prisma.expense.deleteMany({
-      where: {
-        branchId: branch.id,
-        ...(books ? { NOT: { categoryId: books.id } } : {}),
-      },
-    }),
+    prisma.expense.deleteMany({ where: { branchId: branch.id } }),
   ]);
 
   const paymentRows = payments.map((p) => {

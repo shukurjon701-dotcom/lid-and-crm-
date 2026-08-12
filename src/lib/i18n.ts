@@ -33,6 +33,7 @@ export const DICT = {
   "nav.payments": { ru: "Платежи", uz: "To'lovlar" },
   "nav.expenses": { ru: "Расходы", uz: "Xarajatlar" },
   "nav.debtors": { ru: "Должники", uz: "Qarzdorlar" },
+  "nav.books": { ru: "Книги", uz: "Kitoblar" },
   "nav.manage": { ru: "Управление", uz: "Boshqaruv" },
   "nav.staff": { ru: "Сотрудники", uz: "Xodimlar" },
   "nav.audit": { ru: "История изменений", uz: "O'zgarishlar tarixi" },

@@ -1,6 +1,8 @@
 import "server-only";
 import type {
   AuditRec,
+  BookMoveRec,
+  BookRec,
   CallRec,
   Dataset,
   ExpenseRec,
@@ -76,6 +78,19 @@ const EXPENSE_CATEGORIES = [
   { name: "Реклама", min: 2_000_000, max: 9_000_000, count: 4 },
   { name: "Хозрасходы", min: 300_000, max: 2_500_000, count: 6 },
   { name: "Коммунальные", min: 1_200_000, max: 3_500_000, count: 2 },
+];
+
+/** Учебники: закупочная цена и цена продажи ученику */
+const BOOKS = [
+  { title: "Amaliy", cost: 45_000, price: 90_000 },
+  { title: "Nazariy", cost: 65_000, price: 90_000 },
+  { title: "Qoida 1", cost: 45_000, price: 60_000 },
+  { title: "Qoida 2", cost: 55_000, price: 70_000 },
+  { title: "Mashq 1", cost: 30_000, price: 50_000 },
+  { title: "Kids 1", cost: 30_000, price: 55_000 },
+  { title: "Rangli arab tili", cost: 13_000, price: 30_000 },
+  { title: "Kundalik", cost: 7_000, price: 15_000 },
+  { title: "So'zlashuv", cost: 40_000, price: 70_000 },
 ];
 
 const startOfDay = (d: Date) => {
@@ -358,6 +373,78 @@ export function buildDemoDataset(now = new Date()): Dataset {
     });
   }
 
+  // --------------------------------------------------------------- книги
+  // Склад собирается из движений: сначала закупки и продажи, потом остаток.
+  const books: BookRec[] = [];
+  const bookMoves: BookMoveRec[] = [];
+  let moveNo = 0;
+
+  for (const [i, item] of BOOKS.entries()) {
+    const openingStock = int(0, 12);
+    const purchases = int(1, 2);
+    let purchasedCount = 0;
+    let purchasedAmount = 0;
+    let lastPurchase = 0;
+
+    for (let p = 0; p < purchases; p++) {
+      const quantity = int(10, 40);
+      const boughtAt = at(int(10, 70));
+      purchasedCount += quantity;
+      purchasedAmount += quantity * item.cost;
+      lastPurchase = Math.max(lastPurchase, +boughtAt);
+      bookMoves.push({
+        id: `bm-${++moveNo}`,
+        kind: "PURCHASE",
+        bookTitle: item.title,
+        counterparty: "Nashriyot",
+        quantity,
+        unitPrice: item.cost,
+        amount: quantity * item.cost,
+        method: chance(0.5) ? "CASH" : "TRANSFER",
+        happenedAt: boughtAt,
+      });
+    }
+
+    const salesCount = Math.min(int(0, 14), openingStock + purchasedCount);
+    let soldCount = 0;
+    let soldAmount = 0;
+    let lastSale = 0;
+
+    for (let s = 0; s < salesCount; s++) {
+      const soldAt = at(int(0, 30));
+      soldCount += 1;
+      soldAmount += item.price;
+      lastSale = Math.max(lastSale, +soldAt);
+      bookMoves.push({
+        id: `bm-${++moveNo}`,
+        kind: "SALE",
+        bookTitle: item.title,
+        counterparty: name(),
+        quantity: 1,
+        unitPrice: item.price,
+        amount: item.price,
+        method: pick<PaymentMethod>(["CASH", "CASH", "TERMINAL", "CARD", "TRANSFER"]),
+        happenedAt: soldAt,
+      });
+    }
+
+    books.push({
+      id: `bk-${i + 1}`,
+      title: item.title,
+      unitCost: item.cost,
+      salePrice: item.price,
+      stock: openingStock + purchasedCount - soldCount,
+      purchasedCount,
+      soldCount,
+      purchasedAmount,
+      soldAmount,
+      lastPurchaseAt: lastPurchase ? new Date(lastPurchase) : null,
+      lastSaleAt: lastSale ? new Date(lastSale) : null,
+    });
+  }
+
+  bookMoves.sort((a, b) => +b.happenedAt - +a.happenedAt);
+
   // заморозки и уходы в журнале
   for (const student of students.filter((s) => s.status === "FROZEN").slice(0, 5)) {
     audit.push({
@@ -387,6 +474,8 @@ export function buildDemoDataset(now = new Date()): Dataset {
     visits,
     payments,
     expenses,
+    books,
+    bookMoves,
     groups,
     audit,
     operators: OPERATORS,

@@ -124,6 +124,11 @@ enum WorkSessionStatus {
   AUTO_CLOSED // Закрыта системой (забыл нажать "Ушёл")
 }
 
+enum BookMovementKind {
+  PURCHASE // Закупка у поставщика (buyurtma)
+  SALE // Продажа ученику (sotuv)
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -174,6 +179,8 @@ model Branch {
   payments          Payment[]
   expenses          Expense[]
   expenseCategories ExpenseCategory[]
+  books             Book[]
+  bookMovements     BookMovement[]
   calls             CallLog[]
   visits            Visit[]
   workSessions      WorkSession[]
@@ -718,6 +725,75 @@ model Expense {
   @@index([branchId, spentAt])
   @@index([createdById, spentAt])
   @@map("expenses")
+}
+
+// ============================== КНИГИ / СКЛАД ===============================
+
+/// Учебник на складе. Книги живут отдельно от расходов: у них есть остаток,
+/// закупочная и продажная цена — в статью расходов это не помещается.
+/// Итоги (остаток, куплено, продано) считает импорт из книжной таблицы,
+/// движения лежат в BookMovement.
+model Book {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  title String
+
+  /// Закупочная цена за штуку (buyurtma narxi)
+  unitCost Decimal @default(0) @db.Decimal(14, 2)
+  /// Цена продажи ученику (sotish narxi)
+  salePrice Decimal @default(0) @db.Decimal(14, 2)
+
+  /// Остаток на складе, штук (qoldiq)
+  stock Int @default(0)
+  /// Сколько было на складе до первой закупки в таблице
+  openingStock Int @default(0)
+
+  purchasedCount  Int     @default(0)
+  soldCount       Int     @default(0)
+  purchasedAmount Decimal @default(0) @db.Decimal(14, 2)
+  soldAmount      Decimal @default(0) @db.Decimal(14, 2)
+
+  lastPurchaseAt DateTime?
+  lastSaleAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements BookMovement[]
+
+  @@unique([branchId, title])
+  @@index([branchId, stock])
+  @@map("books")
+}
+
+/// Приход и расход книг: закупка у поставщика и продажа ученику.
+model BookMovement {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  bookId String
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  kind     BookMovementKind
+  quantity Int              @default(0)
+
+  /// Цена за штуку в этой операции
+  unitPrice Decimal       @default(0) @db.Decimal(14, 2)
+  amount    Decimal       @default(0) @db.Decimal(14, 2)
+  method    PaymentMethod @default(CASH)
+
+  /// Покупатель (для продажи) или поставщик (для закупки)
+  counterparty String?
+
+  happenedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([branchId, happenedAt])
+  @@index([bookId, happenedAt])
+  @@map("book_movements")
 }
 
 /// Планы филиала на месяц — для план/факт на дашборде Shtab.

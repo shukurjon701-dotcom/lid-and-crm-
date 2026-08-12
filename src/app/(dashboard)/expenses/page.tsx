@@ -77,7 +77,7 @@ export default async function ExpensesPage({
     <div className="rise">
       <ListHeader
         title="Расходы"
-        hint="Rasxod — Sahab и таблица книг"
+        hint="Rasxod — Sahab. Книги вынесены в раздел «Книги»"
         stats={[
           { label: "Записей", value: formatNumber(ds.expenses.length) },
           { label: "За месяц", value: formatMoney(monthTotal, true), tone: "critical" },

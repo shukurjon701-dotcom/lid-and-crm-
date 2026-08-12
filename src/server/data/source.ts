@@ -1,6 +1,7 @@
 import "server-only";
+import { APP } from "@/config/app";
 import { buildDemoDataset } from "@/server/data/demo";
-import type { Dataset } from "@/server/data/types";
+import type { BookMoveRec, BookRec, Dataset } from "@/server/data/types";
 import type { Role } from "@/types/domain";
 
 /**
@@ -90,6 +91,54 @@ export async function getDataset(): Promise<Dataset> {
   return demoCache.data;
 }
 
+/**
+ * Склад книг. Вынесено в отдельный запрос: если миграция с таблицами книг
+ * ещё не применена, пустеет только раздел «Книги», а не весь дашборд.
+ */
+async function loadBooks(
+  prisma: Awaited<ReturnType<typeof getPrisma>>
+): Promise<{ books: BookRec[]; bookMoves: BookMoveRec[] }> {
+  try {
+    const [books, moves] = await Promise.all([
+      prisma.book.findMany({ orderBy: { title: "asc" } }),
+      prisma.bookMovement.findMany({
+        include: { book: { select: { title: true } } },
+        orderBy: { happenedAt: "desc" },
+        take: 500,
+      }),
+    ]);
+
+    return {
+      books: books.map((b) => ({
+        id: b.id,
+        title: b.title,
+        unitCost: Number(b.unitCost),
+        salePrice: Number(b.salePrice),
+        stock: b.stock,
+        purchasedCount: b.purchasedCount,
+        soldCount: b.soldCount,
+        purchasedAmount: Number(b.purchasedAmount),
+        soldAmount: Number(b.soldAmount),
+        lastPurchaseAt: b.lastPurchaseAt,
+        lastSaleAt: b.lastSaleAt,
+      })),
+      bookMoves: moves.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        bookTitle: m.book.title,
+        counterparty: m.counterparty,
+        quantity: m.quantity,
+        unitPrice: Number(m.unitPrice),
+        amount: Number(m.amount),
+        method: m.method,
+        happenedAt: m.happenedAt,
+      })),
+    };
+  } catch {
+    return { books: [], bookMoves: [] };
+  }
+}
+
 /** Чтение снимка из Postgres. Для одного филиала объём маленький — агрегируем в TS. */
 async function loadFromDatabase(): Promise<Dataset> {
   const prisma = await getPrisma();
@@ -129,7 +178,8 @@ async function loadFromDatabase(): Promise<Dataset> {
         take: 3000,
       }),
       prisma.expense.findMany({
-        where: { voidedAt: null },
+        // Книги — отдельный раздел со складом, в расходах их не показываем
+        where: { voidedAt: null, NOT: { category: { name: APP.booksExpenseCategory } } },
         include: { category: true, createdBy: { select: { fullName: true } } },
         orderBy: { spentAt: "desc" },
         take: 1000,
@@ -160,6 +210,8 @@ async function loadFromDatabase(): Promise<Dataset> {
         orderBy: { fullName: "asc" },
       }),
     ]);
+
+  const { books, bookMoves } = await loadBooks(prisma);
 
   return {
     isDemo: false,
@@ -244,6 +296,8 @@ async function loadFromDatabase(): Promise<Dataset> {
       authorName: e.createdBy.fullName,
       spentAt: e.spentAt,
     })),
+    books,
+    bookMoves,
     groups: groups.map((g) => ({
       id: g.id,
       name: g.name,

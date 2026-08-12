@@ -46,6 +46,10 @@ export const PERMISSIONS = {
 
   "debtors.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
 
+  // Склад книг
+  "books.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
+  "books.write": ["OWNER", "BRANCH_ADMIN"],
+
   // Администрирование
   "audit.read": ["OWNER", "BRANCH_ADMIN", "ACCOUNTANT"],
   "users.read": ["OWNER", "BRANCH_ADMIN"],

@@ -10,44 +10,10 @@
  * сначала переводятся на администратора, иначе база не даст их убрать.
  */
 import { PrismaClient } from "@prisma/client";
+import { bitrixStaff } from "./bitrix-staff";
 
 const prisma = new PrismaClient();
 const DRY_RUN = process.argv.includes("--dry-run");
-
-async function bitrixStaff(): Promise<Map<string, string[]>> {
-  const webhook = process.env.BITRIX_WEBHOOK?.replace(/\/+$/, "");
-  if (!webhook) return new Map();
-
-  const byName = new Map<string, string[]>();
-  let start = 0;
-  for (;;) {
-    const response = await fetch(`${webhook}/user.get.json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ start }),
-    });
-    const data = (await response.json()) as {
-      result?: Record<string, unknown>[];
-      next?: number;
-    };
-    for (const user of data.result ?? []) {
-      const name = [user.NAME, user.LAST_NAME]
-        .map((v) => String(v ?? "").trim())
-        .filter((v) => v && !/^REG_ADMIN/i.test(v))
-        .join(" ")
-        .trim();
-      if (!name) continue;
-      // На одно имя в Bitrix бывает несколько учёток — храним все ID,
-      // иначе при сбросе логиновдве  записи схлопнутся в одну и часть
-      // звонков потеряет владельца.
-      const key = name.toLowerCase();
-      byName.set(key, [...(byName.get(key) ?? []), String(user.ID)]);
-    }
-    if (data.next === undefined) break;
-    start = data.next;
-  }
-  return byName;
-}
 
 async function main() {
   const admins = await prisma.user.findMany({

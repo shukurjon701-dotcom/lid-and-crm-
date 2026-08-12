@@ -98,6 +98,40 @@ export type ExpenseRec = {
   spentAt: Date;
 };
 
+/** Учебник на складе: цена, остаток и итоги по закупкам и продажам. */
+export type BookRec = {
+  id: string;
+  title: string;
+  /** Закупочная цена за штуку */
+  unitCost: number;
+  /** Цена продажи ученику */
+  salePrice: number;
+  /** Остаток на складе, штук */
+  stock: number;
+  purchasedCount: number;
+  soldCount: number;
+  /** Потрачено на закупку, сум */
+  purchasedAmount: number;
+  /** Выручка от продаж, сум */
+  soldAmount: number;
+  lastPurchaseAt: Date | null;
+  lastSaleAt: Date | null;
+};
+
+/** Движение книг: закупка у поставщика или продажа ученику. */
+export type BookMoveRec = {
+  id: string;
+  kind: "PURCHASE" | "SALE";
+  bookTitle: string;
+  /** Покупатель или поставщик */
+  counterparty: string | null;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  method: PaymentMethod;
+  happenedAt: Date;
+};
+
 export type GroupRec = {
   id: string;
   name: string;
@@ -145,6 +179,8 @@ export type Dataset = {
   visits: VisitRec[];
   payments: PaymentRec[];
   expenses: ExpenseRec[];
+  books: BookRec[];
+  bookMoves: BookMoveRec[];
   groups: GroupRec[];
   audit: AuditRec[];
   operators: OperatorRec[];

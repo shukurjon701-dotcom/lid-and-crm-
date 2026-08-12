@@ -47,6 +47,7 @@ export const NAV: NavSection[] = [
       { label: "nav.payments", href: "/payments", icon: "Banknote", permission: "payments.read" },
       { label: "nav.expenses", href: "/expenses", icon: "Receipt", permission: "expenses.read" },
       { label: "nav.debtors", href: "/debtors", icon: "AlertTriangle", permission: "debtors.read" },
+      { label: "nav.books", href: "/books", icon: "BookOpen", permission: "books.read" },
     ],
   },
   {
