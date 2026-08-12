@@ -69,7 +69,7 @@ export default async function DebtorsPage({
       align: "right",
       render: (s) =>
         debtOf(s) > 0 ? (
-          <span className="font-medium text-critical-text">{formatMoney(debtOf(s), true)}</span>
+          <span className="font-medium text-critical-text">{formatMoney(debtOf(s))}</span>
         ) : (
           <span className="text-ink-3">не указан</span>
         ),
@@ -97,7 +97,7 @@ export default async function DebtorsPage({
         hint="Qarzdorlar — по данным Sahab"
         stats={[
           { label: "Должников", value: formatNumber(all.length), tone: "critical" },
-          { label: "Сумма долга", value: formatMoney(totalDebt, true), tone: "critical" },
+          { label: "Сумма долга", value: formatMoney(totalDebt), tone: "critical" },
           { label: "Больше месяца", value: formatNumber(older30) },
         ]}
       />

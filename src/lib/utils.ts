@@ -8,13 +8,17 @@ export function cn(...inputs: ClassValue[]) {
 
 const LOCALE = APP.locale;
 
-/** 12500000 → «12 500 000 сум», compact → «12,5 млн сум» */
-export function formatMoney(value: number, compact = false): string {
+/**
+ * 12500000 → «12 500 000 сум».
+ *
+ * Суммы всегда печатаются полностью. Сокращение вида «12,5 млн» округляет
+ * до сотен тысяч, и тогда одно и то же число в двух местах экрана выглядит
+ * по-разному: касса за день — «2 250 000», а плитка рядом — «2,3 млн».
+ * Там, где нужна короткая запись без валюты (оси графиков), есть formatShort.
+ */
+export function formatMoney(value: number): string {
   if (!Number.isFinite(value)) return "—";
-  const formatted = new Intl.NumberFormat(LOCALE, {
-    notation: compact ? "compact" : "standard",
-    maximumFractionDigits: compact ? 1 : 0,
-  }).format(value);
+  const formatted = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 }).format(value);
   return `${formatted} ${APP.currency}`;
 }
 

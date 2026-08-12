@@ -27,7 +27,7 @@ export function AreaChart({
   label: string;
 }) {
   const render = (value: number) =>
-    format === "money" ? formatMoney(value, true) : formatNumber(value);
+    format === "money" ? formatMoney(value) : formatNumber(value);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);

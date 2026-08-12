@@ -87,9 +87,9 @@ export default async function StudentsPage({
       align: "right",
       render: (s) =>
         s.balance < 0 ? (
-          <span className="font-medium text-critical-text">{formatMoney(s.balance, true)}</span>
+          <span className="font-medium text-critical-text">{formatMoney(s.balance)}</span>
         ) : s.balance > 0 ? (
-          <span className="text-good-text">{formatMoney(s.balance, true)}</span>
+          <span className="text-good-text">{formatMoney(s.balance)}</span>
         ) : (
           <span className="text-ink-3">0</span>
         ),

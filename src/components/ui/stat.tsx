@@ -73,7 +73,14 @@ export function StatTile({
         )}
       </div>
 
-      <p className="mt-4 text-[30px] leading-none font-extrabold tracking-[-0.04em]">
+      {/* Суммы печатаются полностью («104 500 000 сум»), поэтому длинному
+          числу даём шрифт помельче — иначе оно вылезает за плитку. */}
+      <p
+        className={cn(
+          "mt-4 leading-none font-extrabold tracking-[-0.04em]",
+          value.length > 15 ? "text-[22px]" : value.length > 11 ? "text-[26px]" : "text-[30px]"
+        )}
+      >
         {value}
       </p>
 

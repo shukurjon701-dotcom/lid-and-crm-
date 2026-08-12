@@ -38,7 +38,7 @@ export default async function MyResultsPage() {
             ? formatNumber(m.callsToday)
             : m.hasGroups
               ? formatNumber(m.studentsCount)
-              : formatMoney(m.paymentsMonthAmount, true)
+              : formatMoney(m.paymentsMonthAmount)
         }
         sub={
           <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
@@ -241,13 +241,13 @@ export default async function MyResultsPage() {
           <StatTile
             label="Принято сегодня"
             hint="Bugungi to'lovlar"
-            value={formatMoney(m.paymentsTodayAmount, true)}
+            value={formatMoney(m.paymentsTodayAmount)}
             accent="good"
             icon={<Wallet className="size-4" strokeWidth={2} />}
           />
           <StatTile
             label="Принято за месяц"
-            value={formatMoney(m.paymentsMonthAmount, true)}
+            value={formatMoney(m.paymentsMonthAmount)}
             sub={`${m.paymentsMonthCount} платежей`}
             accent="s1"
           />

@@ -42,7 +42,7 @@ export default async function MoliyaPage() {
             </span>
             <span>
               Расход сегодня{" "}
-              <b className="font-semibold text-ink">{formatMoney(m.expenseToday, true)}</b>
+              <b className="font-semibold text-ink">{formatMoney(m.expenseToday)}</b>
             </span>
           </span>
         }
@@ -62,7 +62,7 @@ export default async function MoliyaPage() {
         <StatTile
           label="Приход за месяц"
           hint="Oylik tushum"
-          value={formatMoney(m.revenueMonth, true)}
+          value={formatMoney(m.revenueMonth)}
           deltaPct={m.revenueTodayDelta}
           accent="s1"
           icon={<TrendingUp className="size-4" strokeWidth={1.75} />}
@@ -70,7 +70,7 @@ export default async function MoliyaPage() {
         <StatTile
           label="Расходы за месяц"
           hint="Rasxod"
-          value={formatMoney(m.expenseMonth, true)}
+          value={formatMoney(m.expenseMonth)}
           sub="все статьи"
           upIsGood={false}
           accent="s2"
@@ -79,7 +79,7 @@ export default async function MoliyaPage() {
         <StatTile
           label="Чистая прибыль"
           hint="Sof foyda"
-          value={formatMoney(m.netProfit, true)}
+          value={formatMoney(m.netProfit)}
           sub={`маржа ${formatPercent(m.margin)}`}
           accent={m.netProfit >= 0 ? "good" : "critical"}
           icon={<Receipt className="size-4" strokeWidth={1.75} />}
@@ -88,7 +88,7 @@ export default async function MoliyaPage() {
           label="Должники"
           hint="Qarzdorlar"
           value={String(m.debtorsCount)}
-          sub={`на ${formatMoney(m.debtorsAmount, true)}`}
+          sub={`на ${formatMoney(m.debtorsAmount)}`}
           accent="critical"
           upIsGood={false}
           icon={<AlertTriangle className="size-4" strokeWidth={1.75} />}
@@ -99,7 +99,7 @@ export default async function MoliyaPage() {
         <Card>
           <CardHeader title="Касса сегодня по способам" hint="Terminal / Naqd / Kart" />
           <CardBody>
-            <StackedBar segments={methodSegments} format={(v) => formatMoney(v, true)} />
+            <StackedBar segments={methodSegments} format={(v) => formatMoney(v)} />
           </CardBody>
         </Card>
 
@@ -108,7 +108,7 @@ export default async function MoliyaPage() {
           <CardBody>
             <BarList
               rows={m.expenseByCategory}
-              format={(v) => formatMoney(v, true)}
+              format={(v) => formatMoney(v)}
               color="var(--s2)"
               emptyText="Расходов за месяц нет"
             />
@@ -135,7 +135,7 @@ export default async function MoliyaPage() {
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="tnum block text-[13px] font-medium text-good-text">
-                    +{formatMoney(payment.amount, true)}
+                    +{formatMoney(payment.amount)}
                   </span>
                   <span className="tnum block text-[11px] text-ink-3">
                     {formatTime(payment.paidAt)}
@@ -165,7 +165,7 @@ export default async function MoliyaPage() {
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="tnum block text-[13px] font-medium text-critical-text">
-                    −{formatMoney(expense.amount, true)}
+                    −{formatMoney(expense.amount)}
                   </span>
                   <span className="tnum block text-[11px] text-ink-3">
                     {formatDate(expense.spentAt)}

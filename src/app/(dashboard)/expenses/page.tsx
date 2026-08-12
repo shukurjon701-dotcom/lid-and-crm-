@@ -57,7 +57,7 @@ export default async function ExpensesPage({
       header: "Сумма",
       align: "right",
       render: (e) => (
-        <span className="font-medium text-critical-text">−{formatMoney(e.amount, true)}</span>
+        <span className="font-medium text-critical-text">−{formatMoney(e.amount)}</span>
       ),
     },
     { header: "Способ", render: (e) => <Badge tone="neutral">{METHOD_LABELS[e.method].ru}</Badge> },
@@ -80,8 +80,8 @@ export default async function ExpensesPage({
         hint="Rasxod — Sahab. Книги вынесены в раздел «Книги»"
         stats={[
           { label: "Записей", value: formatNumber(ds.expenses.length) },
-          { label: "За месяц", value: formatMoney(monthTotal, true), tone: "critical" },
-          { label: "В списке", value: formatMoney(shown, true) },
+          { label: "За месяц", value: formatMoney(monthTotal), tone: "critical" },
+          { label: "В списке", value: formatMoney(shown) },
         ]}
       />
       <ListToolbar placeholder="Название, статья или автор…" filters={filters} />

@@ -36,15 +36,15 @@ export default async function ShtabPage() {
       <HeroFigure
         label="Чистая прибыль за месяц"
         hint="Sof foyda — приход минус расход"
-        value={formatMoney(m.netProfit, true)}
+        value={formatMoney(m.netProfit)}
         tone={m.netProfit >= 0 ? "good" : "critical"}
         sub={
           <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>
-              Приход <b className="font-semibold text-ink">{formatMoney(m.revenueMonth, true)}</b>
+              Приход <b className="font-semibold text-ink">{formatMoney(m.revenueMonth)}</b>
             </span>
             <span>
-              Расход <b className="font-semibold text-ink">{formatMoney(m.expenseMonth, true)}</b>
+              Расход <b className="font-semibold text-ink">{formatMoney(m.expenseMonth)}</b>
             </span>
             <span>
               Маржа <b className="font-semibold text-ink">{formatPercent(m.margin)}</b>
@@ -91,7 +91,7 @@ export default async function ShtabPage() {
         <StatTile
           label="Приход сегодня"
           hint="Bugungi tushum"
-          value={formatMoney(m.revenueToday, true)}
+          value={formatMoney(m.revenueToday)}
           deltaPct={m.revenueTodayDelta}
           accent="good"
           icon={<TrendingUp className="size-4" strokeWidth={1.75} />}
@@ -106,7 +106,7 @@ export default async function ShtabPage() {
             <p className="mb-4 text-[28px] leading-none font-semibold tracking-[-0.02em]">
               {formatMoney(m.revenueToday)}
             </p>
-            <StackedBar segments={methodSegments} format={(v) => formatMoney(v, true)} />
+            <StackedBar segments={methodSegments} format={(v) => formatMoney(v)} />
           </CardBody>
         </Card>
 
@@ -165,7 +165,7 @@ export default async function ShtabPage() {
             value={formatNumber(m.debtorsCount)}
             sub={
               m.debtorsAmount > 0
-                ? `на ${formatMoney(m.debtorsAmount, true)}`
+                ? `на ${formatMoney(m.debtorsAmount)}`
                 : "сумма в таблице не указана"
             }
             accent="critical"

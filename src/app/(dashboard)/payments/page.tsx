@@ -56,7 +56,7 @@ export default async function PaymentsPage({
       header: "Сумма",
       align: "right",
       render: (p) => (
-        <span className="font-medium text-good-text">+{formatMoney(p.amount, true)}</span>
+        <span className="font-medium text-good-text">+{formatMoney(p.amount)}</span>
       ),
     },
     {
@@ -83,8 +83,8 @@ export default async function PaymentsPage({
         hint="To'lovlar — из Sahab"
         stats={[
           { label: "Платежей", value: formatNumber(ds.payments.length) },
-          { label: "За месяц", value: formatMoney(monthTotal, true), tone: "good" },
-          { label: "Всего", value: formatMoney(total, true) },
+          { label: "За месяц", value: formatMoney(monthTotal), tone: "good" },
+          { label: "Всего", value: formatMoney(total) },
         ]}
       />
       <ListToolbar placeholder="Ученик или кто принял…" filters={FILTERS} />

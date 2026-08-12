@@ -32,7 +32,7 @@ export default async function AdminPage() {
             <span>
               Оплатили{" "}
               <b className="font-semibold text-ink">{m.firstPaymentsCount}</b> на{" "}
-              <b className="font-semibold text-ink">{formatMoney(m.firstPaymentsAmount, true)}</b>
+              <b className="font-semibold text-ink">{formatMoney(m.firstPaymentsAmount)}</b>
             </span>
             <span>
               Визиты <b className="font-semibold text-ink">{m.visitsArrived}</b> из {m.visitsToday}
@@ -60,7 +60,7 @@ export default async function AdminPage() {
         <StatTile
           label="Оплаты за сегодня"
           hint="Bugungi to'lovlar"
-          value={formatMoney(m.paymentsTodayAmount, true)}
+          value={formatMoney(m.paymentsTodayAmount)}
           sub={`${m.paymentsTodayCount} платеж(ей)`}
           accent="s1"
           icon={<Wallet className="size-4" strokeWidth={1.75} />}
@@ -137,7 +137,7 @@ export default async function AdminPage() {
             action={
               <Badge tone="critical" dot>
                 {m.debtorsCount}
-                {m.debtorsAmount > 0 ? ` · ${formatMoney(m.debtorsAmount, true)}` : " человек"}
+                {m.debtorsAmount > 0 ? ` · ${formatMoney(m.debtorsAmount)}` : " человек"}
               </Badge>
             }
           />
@@ -160,7 +160,7 @@ export default async function AdminPage() {
                     </td>
                     <td className="px-3 py-2.5 text-ink-2">{student.groupName}</td>
                     <td className="tnum px-3 py-2.5 text-right font-medium text-critical-text">
-                      {student.debt > 0 ? formatMoney(student.debt, true) : "—"}
+                      {student.debt > 0 ? formatMoney(student.debt) : "—"}
                     </td>
                     <td className="px-5 py-2.5 text-right">
                       <Badge tone={student.daysInDebt > 14 ? "critical" : "warning"} dot>

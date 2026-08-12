@@ -122,7 +122,7 @@ export default async function BooksPage({
       hint: "остаток × закупка",
       align: "right",
       render: (b) => (
-        <span className="text-ink-2">{formatMoney(Math.max(b.stock, 0) * b.unitCost, true)}</span>
+        <span className="text-ink-2">{formatMoney(Math.max(b.stock, 0) * b.unitCost)}</span>
       ),
     },
     {
@@ -131,7 +131,7 @@ export default async function BooksPage({
       render: (b) => (
         <div>
           <p className="font-medium">{formatNumber(b.soldCount)} шт</p>
-          <p className="text-[11px] text-good-text">+{formatMoney(b.soldAmount, true)}</p>
+          <p className="text-[11px] text-good-text">+{formatMoney(b.soldAmount)}</p>
         </div>
       ),
     },
@@ -145,8 +145,8 @@ export default async function BooksPage({
         stats={[
           { label: "Наименований", value: formatNumber(ds.books.length) },
           { label: "На складе", value: `${formatNumber(stockUnits)} шт` },
-          { label: "Стоимость склада", value: formatMoney(stockValue, true) },
-          { label: "Заработок", value: formatMoney(profit, true), tone: "good" },
+          { label: "Стоимость склада", value: formatMoney(stockValue) },
+          { label: "Заработок", value: formatMoney(profit), tone: "good" },
           {
             label: "Заканчиваются",
             value: formatNumber(lowCount),
@@ -179,7 +179,7 @@ export default async function BooksPage({
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="tnum block text-[13px] font-medium text-good-text">
-                    +{formatMoney(move.amount, true)}
+                    +{formatMoney(move.amount)}
                   </span>
                   <span className="tnum block text-[11px] text-ink-3">
                     {formatDate(move.happenedAt)}
@@ -207,7 +207,7 @@ export default async function BooksPage({
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="tnum block text-[13px] font-medium text-critical-text">
-                    −{formatMoney(move.amount, true)}
+                    −{formatMoney(move.amount)}
                   </span>
                   <span className="tnum block text-[11px] text-ink-3">
                     {formatDate(move.happenedAt)}
