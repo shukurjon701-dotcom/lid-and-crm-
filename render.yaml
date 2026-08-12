@@ -11,7 +11,10 @@ services:
     # `db push` только добавляет недостающее и падает на разрушающих правках,
     # а наполнение демо-данными (db:seed) стирает базу — его на боевой базе
     # запускать нельзя.
-    buildCommand: npm install && npx prisma db push && npm run build
+    # `timeout` и `|| true`: если база из среды сборки не видна, push молча
+    # висел бы на переподключениях и растягивал деплой. Схема — вещь важная,
+    # но не настолько, чтобы из-за неё не выехало приложение.
+    buildCommand: npm install && (timeout 90 npx prisma db push || true) && npm run build
     startCommand: npm run start -- --hostname 0.0.0.0 --port $PORT
     envVars:
       - key: NODE_ENV
