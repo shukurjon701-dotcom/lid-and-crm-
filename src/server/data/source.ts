@@ -79,8 +79,17 @@ export async function getDataset(): Promise<Dataset> {
   if (await isDatabaseReady()) {
     try {
       return await loadFromDatabase();
-    } catch {
-      // БД поднята, но пустая или несовместимая — не роняем интерфейс
+    } catch (error) {
+      // БД поднята, но пустая или несовместимая — не роняем интерфейс.
+      // Молчать нельзя: подмена демо-набором выглядит как «сайт работает»,
+      // и причину потом не найти. Частый случай — на сервере не применена
+      // схема (`prisma db push`), и запрос падает на колонке, которой ещё
+      // нет в базе.
+      warnOnce(
+        `База отвечает, но прочитать её не удалось, показываю демо-данные: ${
+          error instanceof Error ? error.message.split("\n").slice(0, 3).join(" ") : String(error)
+        }`
+      );
     }
   }
 
