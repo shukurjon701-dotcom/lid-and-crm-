@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { DataTable, ListHeader, Pagination, type Column } from "@/components/ui/data-table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { pageNumber, paginate, search, type ListParams } from "@/lib/list";
@@ -164,63 +164,76 @@ export default async function BooksPage({
       />
       <Pagination {...page} params={params as Record<string, string | undefined>} />
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Последние продажи" hint="Sotuv — кому и за сколько" />
-          <ul className="divide-y divide-line">
-            {sales.map((move) => (
-              <li key={move.id} className="flex items-center gap-3 px-5 py-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px]">{move.bookTitle}</span>
-                  <span className="block truncate text-[11px] text-ink-3">
-                    {move.counterparty ?? "Покупатель не указан"} · {move.quantity} шт ·{" "}
-                    {METHOD_LABELS[move.method].ru}
+      <div className="mt-4">
+        <CollapsibleGroup
+          id="books.moves"
+          title="Движение книг"
+          hint="Sotuv va buyurtmalar"
+          className="grid gap-4 lg:grid-cols-2"
+        >
+          <CollapsibleCard
+            id="books.moves.sales"
+            title="Последние продажи"
+            hint="Sotuv — кому и за сколько"
+          >
+            <ul className="divide-y divide-line">
+              {sales.map((move) => (
+                <li key={move.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px]">{move.bookTitle}</span>
+                    <span className="block truncate text-[11px] text-ink-3">
+                      {move.counterparty ?? "Покупатель не указан"} · {move.quantity} шт ·{" "}
+                      {METHOD_LABELS[move.method].ru}
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="tnum block text-[13px] font-medium text-good-text">
-                    +{formatMoney(move.amount)}
+                  <span className="shrink-0 text-right">
+                    <span className="tnum block text-[13px] font-medium text-good-text">
+                      +{formatMoney(move.amount)}
+                    </span>
+                    <span className="tnum block text-[11px] text-ink-3">
+                      {formatDate(move.happenedAt)}
+                    </span>
                   </span>
-                  <span className="tnum block text-[11px] text-ink-3">
-                    {formatDate(move.happenedAt)}
-                  </span>
-                </span>
-              </li>
-            ))}
-            {sales.length === 0 && (
-              <li className="px-5 py-10 text-center text-sm text-ink-3">Продаж пока нет</li>
-            )}
-          </ul>
-        </Card>
+                </li>
+              ))}
+              {sales.length === 0 && (
+                <li className="px-5 py-10 text-center text-sm text-ink-3">Продаж пока нет</li>
+              )}
+            </ul>
+          </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Последние закупки" hint="Buyurtma — что заказывали" />
-          <ul className="divide-y divide-line">
-            {purchases.map((move) => (
-              <li key={move.id} className="flex items-center gap-3 px-5 py-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px]">{move.bookTitle}</span>
-                  <span className="block truncate text-[11px] text-ink-3">
-                    {move.quantity} шт × {formatMoney(move.unitPrice)} ·{" "}
-                    {METHOD_LABELS[move.method].ru}
+          <CollapsibleCard
+            id="books.moves.purchases"
+            title="Последние закупки"
+            hint="Buyurtma — что заказывали"
+          >
+            <ul className="divide-y divide-line">
+              {purchases.map((move) => (
+                <li key={move.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px]">{move.bookTitle}</span>
+                    <span className="block truncate text-[11px] text-ink-3">
+                      {move.quantity} шт × {formatMoney(move.unitPrice)} ·{" "}
+                      {METHOD_LABELS[move.method].ru}
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="tnum block text-[13px] font-medium text-critical-text">
-                    −{formatMoney(move.amount)}
+                  <span className="shrink-0 text-right">
+                    <span className="tnum block text-[13px] font-medium text-critical-text">
+                      −{formatMoney(move.amount)}
+                    </span>
+                    <span className="tnum block text-[11px] text-ink-3">
+                      {formatDate(move.happenedAt)}
+                    </span>
                   </span>
-                  <span className="tnum block text-[11px] text-ink-3">
-                    {formatDate(move.happenedAt)}
-                  </span>
-                </span>
-              </li>
-            ))}
-            {purchases.length === 0 && (
-              <li className="px-5 py-10 text-center text-sm text-ink-3">Закупок пока нет</li>
-            )}
-          </ul>
-        </Card>
-      </section>
+                </li>
+              ))}
+              {purchases.length === 0 && (
+                <li className="px-5 py-10 text-center text-sm text-ink-3">Закупок пока нет</li>
+              )}
+            </ul>
+          </CollapsibleCard>
+        </CollapsibleGroup>
+      </div>
     </div>
   );
 }

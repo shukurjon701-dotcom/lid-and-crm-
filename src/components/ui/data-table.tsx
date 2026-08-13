@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { CollapsibleStats } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 export type Column<T> = {
@@ -153,25 +154,27 @@ export function ListHeader({
         {hint && <p className="mt-0.5 text-[13px] text-ink-3">{hint}</p>}
       </div>
       {stats && stats.length > 0 && (
-        <dl className="flex flex-wrap gap-2.5">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="card-shadow rounded-[var(--radius-control)] bg-surface px-3.5 py-2"
-            >
-              <dt className="text-[10.5px] font-bold text-ink-3">{stat.label}</dt>
-              <dd
-                className={cn(
-                  "tnum text-[15px] font-extrabold",
-                  stat.tone === "good" && "text-good-text",
-                  stat.tone === "critical" && "text-critical-text"
-                )}
+        <CollapsibleStats>
+          <dl className="flex flex-wrap gap-2.5">
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className="card-shadow rounded-[var(--radius-control)] bg-surface px-3.5 py-2"
               >
-                {stat.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+                <dt className="text-[10.5px] font-bold text-ink-3">{stat.label}</dt>
+                <dd
+                  className={cn(
+                    "tnum text-[15px] font-extrabold",
+                    stat.tone === "good" && "text-good-text",
+                    stat.tone === "critical" && "text-critical-text"
+                  )}
+                >
+                  {stat.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </CollapsibleStats>
       )}
     </header>
   );

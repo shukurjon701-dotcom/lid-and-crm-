@@ -1,6 +1,9 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
+import { CollapsedProvider } from "@/components/ui/collapsible";
 import { NAV, type NavSectionView } from "@/config/nav";
+import { COLLAPSED_COOKIE, parseCollapsed } from "@/lib/collapsed";
 import { translator } from "@/lib/i18n";
 import { getLang } from "@/lib/i18n-server";
 import { can, ROLE_LABELS } from "@/lib/rbac";
@@ -18,6 +21,10 @@ export default async function DashboardLayout({
   const lang = await getLang();
   const t = translator(lang);
   const ds = await getDataset();
+
+  // Какие блоки сотрудник свернул — знаем до отрисовки, поэтому свёрнутое
+  // не мелькает на экране при каждой загрузке страницы.
+  const collapsed = parseCollapsed((await cookies()).get(COLLAPSED_COOKIE)?.value);
 
   // Меню собирается из прав роли — недоступные пункты не рендерятся вовсе,
   // и здесь же подписи переводятся на выбранный язык.
@@ -51,7 +58,7 @@ export default async function DashboardLayout({
         themeDark: t("header.themeDark"),
       }}
     >
-      {children}
+      <CollapsedProvider initial={collapsed}>{children}</CollapsedProvider>
     </AppShell>
   );
 }

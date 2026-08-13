@@ -3,7 +3,8 @@ import { DoorOpen, Snowflake, UserMinus, Wallet } from "lucide-react";
 import { Meter } from "@/components/charts/bars";
 import { AuditFeed } from "@/components/dashboard/audit-feed";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CardBody } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { HeroFigure, StatTile } from "@/components/ui/stat";
 import { can } from "@/lib/rbac";
 import { getSession } from "@/lib/session";
@@ -23,40 +24,48 @@ export default async function AdminPage() {
 
   return (
     <div className="rise space-y-4">
-      <HeroFigure
-        label="Новые клиенты сегодня"
-        hint="Bugun kelgan yangi mijozlar"
-        value={formatNumber(m.newToday)}
-        sub={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>
-              Оплатили{" "}
-              <b className="font-semibold text-ink">{m.firstPaymentsCount}</b> на{" "}
-              <b className="font-semibold text-ink">{formatMoney(m.firstPaymentsAmount)}</b>
+      <CollapsibleGroup id="admin.main" title="Главное" hint="Asosiy ko'rsatkich">
+        <HeroFigure
+          label="Новые клиенты сегодня"
+          hint="Bugun kelgan yangi mijozlar"
+          value={formatNumber(m.newToday)}
+          sub={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                Оплатили{" "}
+                <b className="font-semibold text-ink">{m.firstPaymentsCount}</b> на{" "}
+                <b className="font-semibold text-ink">{formatMoney(m.firstPaymentsAmount)}</b>
+              </span>
+              <span>
+                Визиты <b className="font-semibold text-ink">{m.visitsArrived}</b> из{" "}
+                {m.visitsToday}
+              </span>
             </span>
-            <span>
-              Визиты <b className="font-semibold text-ink">{m.visitsArrived}</b> из {m.visitsToday}
-            </span>
-          </span>
-        }
-        aside={
-          m.newTodayList.length > 0 ? (
-            <ul className="w-full min-w-[220px] space-y-1.5 sm:w-[260px]">
-              {m.newTodayList.map((student) => (
-                <li key={student.id} className="flex items-center gap-2 text-xs">
-                  <span className="size-1.5 shrink-0 rounded-full bg-s3" />
-                  <span className="min-w-0 flex-1 truncate text-ink-2">{student.fullName}</span>
-                  <span className="shrink-0 text-[11px] text-ink-3">
-                    {SOURCE_LABELS[student.source]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : undefined
-        }
-      />
+          }
+          aside={
+            m.newTodayList.length > 0 ? (
+              <ul className="w-full min-w-[220px] space-y-1.5 sm:w-[260px]">
+                {m.newTodayList.map((student) => (
+                  <li key={student.id} className="flex items-center gap-2 text-xs">
+                    <span className="size-1.5 shrink-0 rounded-full bg-s3" />
+                    <span className="min-w-0 flex-1 truncate text-ink-2">{student.fullName}</span>
+                    <span className="shrink-0 text-[11px] text-ink-3">
+                      {SOURCE_LABELS[student.source]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : undefined
+          }
+        />
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <CollapsibleGroup
+        id="admin.kpi"
+        title="Ключевые показатели"
+        hint="Asosiy raqamlar"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatTile
           label="Оплаты за сегодня"
           hint="Bugungi to'lovlar"
@@ -90,15 +99,20 @@ export default async function AdminPage() {
           upIsGood={false}
           icon={<UserMinus className="size-4" strokeWidth={1.75} />}
         />
-      </section>
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
+      <CollapsibleGroup
+        id="admin.retention"
+        title="Удержание и должники"
+        hint="Ushlab qolish va qarzdorlar"
+        className="grid gap-4 lg:grid-cols-[1fr_1.3fr]"
+      >
         {/* ----------------------------- Удержание ----------------------------- */}
-        <Card>
-          <CardHeader
-            title="Удержание новых учеников"
-            hint="Когорта за 30 дней: дошли до 2-го и 3-го урока"
-          />
+        <CollapsibleCard
+          id="admin.retention.cohort"
+          title="Удержание новых учеников"
+          hint="Когорта за 30 дней: дошли до 2-го и 3-го урока"
+        >
           <CardBody className="space-y-5">
             <Meter
               value={m.cohortSize}
@@ -127,20 +141,20 @@ export default async function AdminPage() {
               с преподавателем или расписанием группы.
             </p>
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
         {/* ----------------------------- Должники ------------------------------ */}
-        <Card>
-          <CardHeader
-            title="Должники"
-            hint="Qarzdorlar — с датой образования долга"
-            action={
-              <Badge tone="critical" dot>
-                {m.debtorsCount}
-                {m.debtorsAmount > 0 ? ` · ${formatMoney(m.debtorsAmount)}` : " человек"}
-              </Badge>
-            }
-          />
+        <CollapsibleCard
+          id="admin.retention.debtors"
+          title="Должники"
+          hint="Qarzdorlar — с датой образования долга"
+          action={
+            <Badge tone="critical" dot>
+              {m.debtorsCount}
+              {m.debtorsAmount > 0 ? ` · ${formatMoney(m.debtorsAmount)}` : " человек"}
+            </Badge>
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
@@ -153,7 +167,10 @@ export default async function AdminPage() {
               </thead>
               <tbody>
                 {m.debtors.map((student) => (
-                  <tr key={student.id} className="border-b border-line last:border-0 hover:bg-surface-2">
+                  <tr
+                    key={student.id}
+                    className="border-b border-line last:border-0 hover:bg-surface-2"
+                  >
                     <td className="px-5 py-2.5">
                       <p className="truncate font-medium">{student.fullName}</p>
                       <p className="tnum text-[11px] text-ink-3">{student.publicId}</p>
@@ -182,13 +199,17 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
 
       {/* ------------------------- Заморозки и уходы ------------------------- */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Замороженные" hint="Muzlatilganlar" />
+      <CollapsibleGroup
+        id="admin.status"
+        title="Заморозки и уходы"
+        hint="Muzlatilganlar va ketganlar"
+        className="grid gap-4 lg:grid-cols-2"
+      >
+        <CollapsibleCard id="admin.status.frozen" title="Замороженные" hint="Muzlatilganlar">
           <ul className="divide-y divide-line">
             {m.frozenList.map((student) => (
               <li key={student.id} className="flex items-center gap-3 px-5 py-3">
@@ -205,10 +226,9 @@ export default async function AdminPage() {
               <li className="px-5 py-8 text-center text-sm text-ink-3">Никого нет</li>
             )}
           </ul>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Ушедшие за месяц" hint="Ketganlar" />
+        <CollapsibleCard id="admin.status.left" title="Ушедшие за месяц" hint="Ketganlar">
           <ul className="divide-y divide-line">
             {m.leftList.map((student) => (
               <li key={student.id} className="flex items-center gap-3 px-5 py-3">
@@ -227,10 +247,10 @@ export default async function AdminPage() {
               <li className="px-5 py-8 text-center text-sm text-ink-3">Никто не ушёл</li>
             )}
           </ul>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
 
-      <AuditFeed items={m.audit} />
+      <AuditFeed id="admin.audit" items={m.audit} />
     </div>
   );
 }

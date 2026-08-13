@@ -3,7 +3,8 @@ import { AlertTriangle, Receipt, TrendingDown, TrendingUp } from "lucide-react";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarList, StackedBar } from "@/components/charts/bars";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CardBody } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { HeroFigure, StatTile } from "@/components/ui/stat";
 import { can } from "@/lib/rbac";
 import { getSession } from "@/lib/session";
@@ -31,34 +32,41 @@ export default async function MoliyaPage() {
 
   return (
     <div className="rise space-y-4">
-      <HeroFigure
-        label="Поступления сегодня"
-        hint="Bugungi tushum"
-        value={formatMoney(m.revenueToday)}
-        sub={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>
-              Платежей <b className="font-semibold text-ink">{m.paymentsTodayCount}</b>
+      <CollapsibleGroup id="moliya.main" title="Главное" hint="Asosiy ko'rsatkich">
+        <HeroFigure
+          label="Поступления сегодня"
+          hint="Bugungi tushum"
+          value={formatMoney(m.revenueToday)}
+          sub={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                Платежей <b className="font-semibold text-ink">{m.paymentsTodayCount}</b>
+              </span>
+              <span>
+                Расход сегодня{" "}
+                <b className="font-semibold text-ink">{formatMoney(m.expenseToday)}</b>
+              </span>
             </span>
-            <span>
-              Расход сегодня{" "}
-              <b className="font-semibold text-ink">{formatMoney(m.expenseToday)}</b>
-            </span>
-          </span>
-        }
-        aside={
-          <div className="w-full min-w-[240px] sm:w-[280px]">
-            <p className="mb-2 text-[11px] text-ink-3">Приход за 14 дней</p>
-            <AreaChart
-              points={m.revenueByDay}
-              format="money"
-              label="Приход по дням за 14 дней"
-            />
-          </div>
-        }
-      />
+          }
+          aside={
+            <div className="w-full min-w-[240px] sm:w-[280px]">
+              <p className="mb-2 text-[11px] text-ink-3">Приход за 14 дней</p>
+              <AreaChart
+                points={m.revenueByDay}
+                format="money"
+                label="Приход по дням за 14 дней"
+              />
+            </div>
+          }
+        />
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <CollapsibleGroup
+        id="moliya.kpi"
+        title="Ключевые показатели"
+        hint="Asosiy raqamlar"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatTile
           label="Приход за месяц"
           hint="Oylik tushum"
@@ -93,18 +101,29 @@ export default async function MoliyaPage() {
           upIsGood={false}
           icon={<AlertTriangle className="size-4" strokeWidth={1.75} />}
         />
-      </section>
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Касса сегодня по способам" hint="Terminal / Naqd / Kart" />
+      <CollapsibleGroup
+        id="moliya.structure"
+        title="Касса и расходы"
+        hint="Kassa va xarajatlar"
+        className="grid gap-4 lg:grid-cols-2"
+      >
+        <CollapsibleCard
+          id="moliya.structure.methods"
+          title="Касса сегодня по способам"
+          hint="Terminal / Naqd / Kart"
+        >
           <CardBody>
             <StackedBar segments={methodSegments} format={(v) => formatMoney(v)} />
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Расходы по статьям" hint="Rasxod turlari — за месяц" />
+        <CollapsibleCard
+          id="moliya.structure.categories"
+          title="Расходы по статьям"
+          hint="Rasxod turlari — за месяц"
+        >
           <CardBody>
             <BarList
               rows={m.expenseByCategory}
@@ -113,16 +132,25 @@ export default async function MoliyaPage() {
               emptyText="Расходов за месяц нет"
             />
           </CardBody>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Последние платежи"
-            hint="Bugungi to'lovlar"
-            action={<Badge tone="good" dot>{m.paymentsTodayCount} сегодня</Badge>}
-          />
+      <CollapsibleGroup
+        id="moliya.recent"
+        title="Последние операции"
+        hint="Oxirgi to'lov va xarajatlar"
+        className="grid gap-4 lg:grid-cols-2"
+      >
+        <CollapsibleCard
+          id="moliya.recent.payments"
+          title="Последние платежи"
+          hint="Bugungi to'lovlar"
+          action={
+            <Badge tone="good" dot>
+              {m.paymentsTodayCount} сегодня
+            </Badge>
+          }
+        >
           <ul className="divide-y divide-line">
             {m.recentPayments.map((payment) => (
               <li key={payment.id} className="flex items-center gap-3 px-5 py-3">
@@ -149,10 +177,13 @@ export default async function MoliyaPage() {
               </li>
             )}
           </ul>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Последние расходы" hint="Kim, qancha va nima uchun" />
+        <CollapsibleCard
+          id="moliya.recent.expenses"
+          title="Последние расходы"
+          hint="Kim, qancha va nima uchun"
+        >
           <ul className="divide-y divide-line">
             {m.recentExpenses.map((expense) => (
               <li key={expense.id} className="flex items-center gap-3 px-5 py-3">
@@ -177,8 +208,8 @@ export default async function MoliyaPage() {
               <li className="px-5 py-10 text-center text-sm text-ink-3">Расходов нет</li>
             )}
           </ul>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
     </div>
   );
 }

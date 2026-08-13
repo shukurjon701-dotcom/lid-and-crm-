@@ -3,7 +3,8 @@ import { DoorOpen, PhoneCall, Sparkles, Target } from "lucide-react";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarList, Meter } from "@/components/charts/bars";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CardBody } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { HeroFigure, StatTile } from "@/components/ui/stat";
 import { can } from "@/lib/rbac";
 import { getSession } from "@/lib/session";
@@ -29,39 +30,46 @@ export default async function CallCenterPage() {
 
   return (
     <div className="rise space-y-4">
-      <HeroFigure
-        label="Звонков сегодня"
-        hint="Bugungi qo'ng'iroqlar"
-        value={formatNumber(m.callsToday)}
-        sub={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>
-              Call dars <b className="font-semibold text-ink">{m.lessonsToday}</b>
+      <CollapsibleGroup id="cc.main" title="Главное" hint="Asosiy ko'rsatkich">
+        <HeroFigure
+          label="Звонков сегодня"
+          hint="Bugungi qo'ng'iroqlar"
+          value={formatNumber(m.callsToday)}
+          sub={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                Call dars <b className="font-semibold text-ink">{m.lessonsToday}</b>
+              </span>
+              <span>
+                В разговоре{" "}
+                <b className="font-semibold text-ink">{formatDuration(m.talkMinutesToday)}</b>
+              </span>
+              <span>
+                Всего за период{" "}
+                <b className="font-semibold text-ink">{formatNumber(m.callsTotal)}</b>
+              </span>
             </span>
-            <span>
-              В разговоре{" "}
-              <b className="font-semibold text-ink">{formatDuration(m.talkMinutesToday)}</b>
-            </span>
-            <span>
-              Всего за период{" "}
-              <b className="font-semibold text-ink">{formatNumber(m.callsTotal)}</b>
-            </span>
-          </span>
-        }
-        aside={
-          <div className="w-full min-w-[240px] sm:w-[280px]">
-            <p className="mb-2 text-[11px] text-ink-3">Звонки за 14 дней</p>
-            <AreaChart
-              points={m.callsByDay}
-              format="count"
-              color="var(--s2)"
-              label="Количество звонков по дням"
-            />
-          </div>
-        }
-      />
+          }
+          aside={
+            <div className="w-full min-w-[240px] sm:w-[280px]">
+              <p className="mb-2 text-[11px] text-ink-3">Звонки за 14 дней</p>
+              <AreaChart
+                points={m.callsByDay}
+                format="count"
+                color="var(--s2)"
+                label="Количество звонков по дням"
+              />
+            </div>
+          }
+        />
+      </CollapsibleGroup>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <CollapsibleGroup
+        id="cc.kpi"
+        title="Ключевые показатели"
+        hint="Asosiy raqamlar"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatTile
           label="Лиды за день"
           hint="Kunlik lid soni"
@@ -94,12 +102,16 @@ export default async function CallCenterPage() {
           accent="s4"
           icon={<PhoneCall className="size-4" strokeWidth={1.75} />}
         />
-      </section>
+      </CollapsibleGroup>
 
       {/* ------------------------------- Продажи ------------------------------- */}
-      <section className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
-        <Card>
-          <CardHeader title="Продажи сегодня" hint="Sotuv offline / online" />
+      <CollapsibleGroup
+        id="cc.sales"
+        title="Продажи и лиды"
+        hint="Sotuv va lidlar"
+        className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]"
+      >
+        <CollapsibleCard id="cc.sales.today" title="Продажи сегодня" hint="Sotuv offline / online">
           <CardBody className="space-y-4">
             <p className="text-[28px] leading-none font-semibold tracking-[-0.02em]">
               {formatNumber(totalSales)}
@@ -119,10 +131,9 @@ export default async function CallCenterPage() {
               right={formatNumber(m.salesOnline)}
             />
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Источники лидов" hint="За текущий месяц" />
+        <CollapsibleCard id="cc.sales.sources" title="Источники лидов" hint="За текущий месяц">
           <CardBody>
             <BarList
               rows={m.bySource.slice(0, 6).map((row) => ({
@@ -132,10 +143,9 @@ export default async function CallCenterPage() {
               format={(v) => formatNumber(v)}
             />
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Последние лиды" hint="Bugungi lidlar" />
+        <CollapsibleCard id="cc.sales.recent" title="Последние лиды" hint="Bugungi lidlar">
           <ul className="scroll-slim max-h-[280px] divide-y divide-line overflow-y-auto">
             {m.recentLeads.map((lead) => (
               <li key={lead.id} className="flex items-center gap-3 px-5 py-2.5">
@@ -164,16 +174,16 @@ export default async function CallCenterPage() {
               </li>
             )}
           </ul>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
 
       {/* ---------------------------- Рейтинг операторов ---------------------------- */}
-      <Card>
-        <CardHeader
-          title="Операторы"
-          hint="Показатели за сегодня"
-          action={<span className="text-xs text-ink-3">{m.perOperator.length} с активностью</span>}
-        />
+      <CollapsibleCard
+        id="cc.operators"
+        title="Операторы"
+        hint="Показатели за сегодня"
+        action={<span className="text-xs text-ink-3">{m.perOperator.length} с активностью</span>}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
@@ -208,7 +218,7 @@ export default async function CallCenterPage() {
             </tbody>
           </table>
         </div>
-      </Card>
+      </CollapsibleCard>
     </div>
   );
 }

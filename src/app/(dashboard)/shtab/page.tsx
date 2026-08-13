@@ -4,7 +4,8 @@ import { AreaChart } from "@/components/charts/area-chart";
 import { Donut } from "@/components/charts/donut";
 import { Meter, StackedBar } from "@/components/charts/bars";
 import { AuditFeed } from "@/components/dashboard/audit-feed";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CardBody } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { HeroFigure, StatTile } from "@/components/ui/stat";
 import { can } from "@/lib/rbac";
 import { getSession } from "@/lib/session";
@@ -33,38 +34,45 @@ export default async function ShtabPage() {
   return (
     <div className="rise space-y-4">
       {/* ------------------------------- Ведущее число ------------------------------- */}
-      <HeroFigure
-        label="Чистая прибыль за месяц"
-        hint="Sof foyda — приход минус расход"
-        value={formatMoney(m.netProfit)}
-        tone={m.netProfit >= 0 ? "good" : "critical"}
-        sub={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>
-              Приход <b className="font-semibold text-ink">{formatMoney(m.revenueMonth)}</b>
+      <CollapsibleGroup id="shtab.main" title="Главное" hint="Asosiy ko'rsatkich">
+        <HeroFigure
+          label="Чистая прибыль за месяц"
+          hint="Sof foyda — приход минус расход"
+          value={formatMoney(m.netProfit)}
+          tone={m.netProfit >= 0 ? "good" : "critical"}
+          sub={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                Приход <b className="font-semibold text-ink">{formatMoney(m.revenueMonth)}</b>
+              </span>
+              <span>
+                Расход <b className="font-semibold text-ink">{formatMoney(m.expenseMonth)}</b>
+              </span>
+              <span>
+                Маржа <b className="font-semibold text-ink">{formatPercent(m.margin)}</b>
+              </span>
             </span>
-            <span>
-              Расход <b className="font-semibold text-ink">{formatMoney(m.expenseMonth)}</b>
-            </span>
-            <span>
-              Маржа <b className="font-semibold text-ink">{formatPercent(m.margin)}</b>
-            </span>
-          </span>
-        }
-        aside={
-          <div className="w-full min-w-[240px] sm:w-[280px]">
-            <p className="mb-2 text-[11px] text-ink-3">Приход за 14 дней</p>
-            <AreaChart
-              points={m.revenueByDay}
-              format="money"
-              label="Приход по дням за 14 дней"
-            />
-          </div>
-        }
-      />
+          }
+          aside={
+            <div className="w-full min-w-[240px] sm:w-[280px]">
+              <p className="mb-2 text-[11px] text-ink-3">Приход за 14 дней</p>
+              <AreaChart
+                points={m.revenueByDay}
+                format="money"
+                label="Приход по дням за 14 дней"
+              />
+            </div>
+          }
+        />
+      </CollapsibleGroup>
 
       {/* ------------------------------ Ключевые метрики ----------------------------- */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <CollapsibleGroup
+        id="shtab.kpi"
+        title="Ключевые показатели"
+        hint="Asosiy raqamlar"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatTile
           label="Активные ученики"
           hint="Faol o'quvchilar"
@@ -96,36 +104,52 @@ export default async function ShtabPage() {
           accent="good"
           icon={<TrendingUp className="size-4" strokeWidth={1.75} />}
         />
-      </section>
+      </CollapsibleGroup>
 
       {/* ----------------------------- Касса и структура ----------------------------- */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Касса сегодня" hint="Bugungi tushum: naqd / terminal / kart" />
+      <CollapsibleGroup
+        id="shtab.cash"
+        title="Касса и структура"
+        hint="Kassa va yo'nalishlar"
+        className="grid gap-4 lg:grid-cols-2"
+      >
+        <CollapsibleCard
+          id="shtab.cash.today"
+          title="Касса сегодня"
+          hint="Bugungi tushum: naqd / terminal / kart"
+        >
           <CardBody>
             <p className="mb-4 text-[28px] leading-none font-semibold tracking-[-0.02em]">
               {formatMoney(m.revenueToday)}
             </p>
             <StackedBar segments={methodSegments} format={(v) => formatMoney(v)} />
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader title="Ученики по направлениям" hint="Yo'nalishlar bo'yicha" />
+        <CollapsibleCard
+          id="shtab.cash.courses"
+          title="Ученики по направлениям"
+          hint="Yo'nalishlar bo'yicha"
+        >
           <CardBody>
             <Donut slices={m.byCourse} centerLabel="активных учеников" unit="уч." />
           </CardBody>
-        </Card>
-      </section>
+        </CollapsibleCard>
+      </CollapsibleGroup>
 
       {/* ------------------------------ Группы и отток ------------------------------- */}
-      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card>
-          <CardHeader
-            title="Заполненность групп"
-            hint="Guruhlar to'ldirilishi"
-            action={<span className="text-xs text-ink-3">{m.groupsFilled.length} групп</span>}
-          />
+      <CollapsibleGroup
+        id="shtab.groups"
+        title="Группы и отток"
+        hint="Guruhlar va ketganlar"
+        className="grid gap-4 lg:grid-cols-[1.4fr_1fr]"
+      >
+        <CollapsibleCard
+          id="shtab.groups.fill"
+          title="Заполненность групп"
+          hint="Guruhlar to'ldirilishi"
+          action={<span className="text-xs text-ink-3">{m.groupsFilled.length} групп</span>}
+        >
           <CardBody className="scroll-slim max-h-[320px] space-y-3.5 overflow-y-auto">
             {m.groupsFilled.map((group) => (
               <Meter
@@ -142,7 +166,7 @@ export default async function ShtabPage() {
               />
             ))}
           </CardBody>
-        </Card>
+        </CollapsibleCard>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <StatTile
@@ -172,9 +196,9 @@ export default async function ShtabPage() {
             className="sm:col-span-2 lg:col-span-1"
           />
         </div>
-      </section>
+      </CollapsibleGroup>
 
-      <AuditFeed items={m.audit} />
+      <AuditFeed id="shtab.audit" items={m.audit} />
 
       <p className="pt-1 text-center text-[11px] text-ink-3">
         Средний чек за месяц:{" "}

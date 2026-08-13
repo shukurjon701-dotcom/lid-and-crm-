@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Card, CardHeader } from "@/components/ui/card";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { CollapsibleCard } from "@/components/ui/collapsible";
 import { formatDate, formatTime } from "@/lib/utils";
 import type { AuditRec } from "@/server/data/types";
 import type { AuditAction } from "@/types/domain";
@@ -28,18 +28,27 @@ const META: Record<AuditAction, { label: string; tone: BadgeTone }> = {
 };
 
 /** Лента журнала изменений: кто, что и когда сделал. */
-export function AuditFeed({ items, title = "История изменений" }: { items: AuditRec[]; title?: string }) {
+export function AuditFeed({
+  id,
+  items,
+  title = "История изменений",
+}: {
+  /** Ключ, под которым запоминается, свёрнут ли блок на этом дашборде */
+  id: string;
+  items: AuditRec[];
+  title?: string;
+}) {
   return (
-    <Card>
-      <CardHeader
-        title={title}
-        hint="Кто, что и когда изменил"
-        action={
-          <Link href="/audit" className="text-xs font-medium text-accent hover:underline">
-            Весь журнал →
-          </Link>
-        }
-      />
+    <CollapsibleCard
+      id={id}
+      title={title}
+      hint="Кто, что и когда изменил"
+      action={
+        <Link href="/audit" className="text-xs font-medium text-accent hover:underline">
+          Весь журнал →
+        </Link>
+      }
+    >
       <ul className="divide-y divide-line">
         {items.map((item) => {
           const meta = META[item.action] ?? { label: item.action, tone: "neutral" as BadgeTone };
@@ -73,7 +82,7 @@ export function AuditFeed({ items, title = "История изменений" }
           <li className="px-5 py-10 text-center text-sm text-ink-3">Событий пока нет</li>
         )}
       </ul>
-    </Card>
+    </CollapsibleCard>
   );
 }
 

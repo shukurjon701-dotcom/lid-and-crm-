@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { Award, GraduationCap, PhoneCall, Sparkles, Target, Wallet } from "lucide-react";
 import { Meter } from "@/components/charts/bars";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/ui/card";
+import { CollapsibleCard, CollapsibleGroup } from "@/components/ui/collapsible";
 import { HeroFigure, StatTile } from "@/components/ui/stat";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { getSession } from "@/lib/session";
@@ -30,65 +31,72 @@ export default async function MyResultsPage() {
   // группы, у администратора — касса. Пустые блоки не показываем.
   return (
     <div className="rise space-y-4">
-      <HeroFigure
-        label={`${session.fullName} · ${ROLE_LABELS[session.role]}`}
-        hint="Ваши результаты"
-        value={
-          m.hasCalls
-            ? formatNumber(m.callsToday)
-            : m.hasGroups
-              ? formatNumber(m.studentsCount)
-              : formatMoney(m.paymentsMonthAmount)
-        }
-        sub={
-          <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            {m.hasCalls && (
-              <>
-                <span>звонков сегодня</span>
-                <span>
-                  За месяц <b className="font-bold text-ink">{formatNumber(m.callsMonth)}</b>
-                </span>
-                <span>
-                  В разговоре{" "}
-                  <b className="font-bold text-ink">{formatDuration(m.talkMinutesToday)}</b>
-                </span>
-              </>
-            )}
-            {!m.hasCalls && m.hasGroups && (
-              <>
-                <span>учеников в ваших группах</span>
-                <span>
-                  Групп <b className="font-bold text-ink">{m.groups.length}</b>
-                </span>
-              </>
-            )}
-            {!m.hasCalls && !m.hasGroups && (
-              <>
-                <span>принято за месяц</span>
-                <span>
-                  Платежей <b className="font-bold text-ink">{m.paymentsMonthCount}</b>
-                </span>
-              </>
-            )}
-          </span>
-        }
-        aside={
-          m.place ? (
-            <div className="text-center">
-              <p className="text-[11px] font-bold text-ink-3">Место сегодня</p>
-              <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.04em] text-accent">
-                {m.place}
-              </p>
-              <p className="mt-1 text-[11px] text-ink-3">из {m.boardSize} операторов</p>
-            </div>
-          ) : undefined
-        }
-      />
+      <CollapsibleGroup id="me.main" title="Главное" hint="Asosiy ko'rsatkich">
+        <HeroFigure
+          label={`${session.fullName} · ${ROLE_LABELS[session.role]}`}
+          hint="Ваши результаты"
+          value={
+            m.hasCalls
+              ? formatNumber(m.callsToday)
+              : m.hasGroups
+                ? formatNumber(m.studentsCount)
+                : formatMoney(m.paymentsMonthAmount)
+          }
+          sub={
+            <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
+              {m.hasCalls && (
+                <>
+                  <span>звонков сегодня</span>
+                  <span>
+                    За месяц <b className="font-bold text-ink">{formatNumber(m.callsMonth)}</b>
+                  </span>
+                  <span>
+                    В разговоре{" "}
+                    <b className="font-bold text-ink">{formatDuration(m.talkMinutesToday)}</b>
+                  </span>
+                </>
+              )}
+              {!m.hasCalls && m.hasGroups && (
+                <>
+                  <span>учеников в ваших группах</span>
+                  <span>
+                    Групп <b className="font-bold text-ink">{m.groups.length}</b>
+                  </span>
+                </>
+              )}
+              {!m.hasCalls && !m.hasGroups && (
+                <>
+                  <span>принято за месяц</span>
+                  <span>
+                    Платежей <b className="font-bold text-ink">{m.paymentsMonthCount}</b>
+                  </span>
+                </>
+              )}
+            </span>
+          }
+          aside={
+            m.place ? (
+              <div className="text-center">
+                <p className="text-[11px] font-bold text-ink-3">Место сегодня</p>
+                <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.04em] text-accent">
+                  {m.place}
+                </p>
+                <p className="mt-1 text-[11px] text-ink-3">из {m.boardSize} операторов</p>
+              </div>
+            ) : undefined
+          }
+        />
+      </CollapsibleGroup>
 
       {/* ------------------------------- Оператор ------------------------------- */}
       {m.hasCalls && (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <CollapsibleGroup
+            id="me.kpi"
+            title="Ключевые показатели"
+            hint="Asosiy raqamlar"
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          >
             <StatTile
               label="Звонки сегодня"
               hint="Bugungi qo'ng'iroqlar"
@@ -122,11 +130,15 @@ export default async function MyResultsPage() {
               accent="s4"
               icon={<Award className="size-4" strokeWidth={2} />}
             />
-          </section>
+          </CollapsibleGroup>
 
-          <section className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader title="Звонки сегодня" hint="Последние восемь" />
+          <CollapsibleGroup
+            id="me.calls"
+            title="Звонки и лиды"
+            hint="Qo'ng'iroqlar va lidlar"
+            className="grid gap-4 lg:grid-cols-2"
+          >
+            <CollapsibleCard id="me.calls.recent" title="Звонки сегодня" hint="Последние восемь">
               <ul className="divide-y divide-line">
                 {m.recentCalls.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 px-5 py-3">
@@ -153,10 +165,9 @@ export default async function MyResultsPage() {
                   </li>
                 )}
               </ul>
-            </Card>
+            </CollapsibleCard>
 
-            <Card>
-              <CardHeader title="Ваши лиды" hint="За текущий месяц" />
+            <CollapsibleCard id="me.calls.leads" title="Ваши лиды" hint="За текущий месяц">
               <ul className="divide-y divide-line">
                 {m.recentLeads.map((l) => (
                   <li key={l.id} className="flex items-center gap-3 px-5 py-3">
@@ -182,20 +193,25 @@ export default async function MyResultsPage() {
                   </li>
                 )}
               </ul>
-            </Card>
-          </section>
+            </CollapsibleCard>
+          </CollapsibleGroup>
         </>
       )}
 
       {/* ---------------------------- Преподаватель ---------------------------- */}
       {m.hasGroups && (
-        <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <Card>
-            <CardHeader
-              title="Ваши группы"
-              hint="Guruhlar"
-              action={<span className="text-xs text-ink-3">{m.groups.length}</span>}
-            />
+        <CollapsibleGroup
+          id="me.groups"
+          title="Ваши группы"
+          hint="Guruhlar va o'quvchilar"
+          className="grid gap-4 lg:grid-cols-[1.4fr_1fr]"
+        >
+          <CollapsibleCard
+            id="me.groups.list"
+            title="Ваши группы"
+            hint="Guruhlar"
+            action={<span className="text-xs text-ink-3">{m.groups.length}</span>}
+          >
             <CardBody className="space-y-4">
               {m.groups.map((g) => (
                 <Meter
@@ -212,7 +228,7 @@ export default async function MyResultsPage() {
                 />
               ))}
             </CardBody>
-          </Card>
+          </CollapsibleCard>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <StatTile
@@ -232,12 +248,17 @@ export default async function MyResultsPage() {
               upIsGood={false}
             />
           </div>
-        </section>
+        </CollapsibleGroup>
       )}
 
       {/* ----------------------------- Касса ----------------------------- */}
       {m.hasPayments && (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <CollapsibleGroup
+          id="me.cash"
+          title="Ваша касса"
+          hint="Qabul qilingan to'lovlar"
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        >
           <StatTile
             label="Принято сегодня"
             hint="Bugungi to'lovlar"
@@ -251,7 +272,7 @@ export default async function MyResultsPage() {
             sub={`${m.paymentsMonthCount} платежей`}
             accent="s1"
           />
-        </section>
+        </CollapsibleGroup>
       )}
 
       {!m.hasCalls && !m.hasGroups && !m.hasPayments && (
