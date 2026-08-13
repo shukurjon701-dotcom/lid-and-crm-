@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 const FILTERS = [
   { value: "CASH", label: "Наличные" },
-  { value: "TERMINAL", label: "Терминал" },
   { value: "CARD", label: "Карта" },
   { value: "TRANSFER", label: "Перевод" },
 ];

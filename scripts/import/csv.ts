@@ -189,11 +189,12 @@ export const toStudentStatus = (raw: string) =>
     "ACTIVE"
   );
 
+/** Терминал — это оплата картой через POS, поэтому он тоже становится CARD. */
 export const toPaymentMethod = (raw: string) =>
-  match<"CASH" | "CARD" | "TERMINAL" | "TRANSFER">(
+  match<"CASH" | "CARD" | "TRANSFER">(
     raw,
     [
-      [["terminal", "терминал", "pos"], "TERMINAL"],
+      [["terminal", "терминал", "pos"], "CARD"],
       [["naqd", "нал", "cash", "qo'lda", "qolda"], "CASH"],
       [["click", "payme", "перевод", "o'tkaz", "otkaz", "transfer", "bank", "uzum"], "TRANSFER"],
       [["kart", "карт", "card", "plastik", "humo", "uzcard"], "CARD"],

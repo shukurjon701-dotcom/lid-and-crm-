@@ -227,7 +227,7 @@ export function buildDemoDataset(now = new Date()): Dataset {
           studentId: student.id,
           studentName: student.fullName,
           amount: course.price,
-          method: pick<PaymentMethod>(["CASH", "CASH", "TERMINAL", "TERMINAL", "TERMINAL", "CARD", "TRANSFER"]),
+          method: pick<PaymentMethod>(["CASH", "CASH", "CARD", "CARD", "CARD", "CARD", "TRANSFER"]),
           isFirstPayment: daysAgo < daysThisMonth && p === 0,
           receivedByName: pick(ADMINS),
           paidAt: at(int(0, Math.min(daysThisMonth, 28))),
@@ -244,7 +244,7 @@ export function buildDemoDataset(now = new Date()): Dataset {
       studentId: student.id,
       studentName: student.fullName,
       amount: student.monthlyPrice,
-      method: pick<PaymentMethod>(["CASH", "CASH", "TERMINAL", "TERMINAL", "CARD", "TRANSFER"]),
+      method: pick<PaymentMethod>(["CASH", "CASH", "CARD", "CARD", "CARD", "TRANSFER"]),
       isFirstPayment: i < 3,
       receivedByName: pick(ADMINS),
       paidAt: at(0),
@@ -423,7 +423,7 @@ export function buildDemoDataset(now = new Date()): Dataset {
         quantity: 1,
         unitPrice: item.price,
         amount: item.price,
-        method: pick<PaymentMethod>(["CASH", "CASH", "TERMINAL", "CARD", "TRANSFER"]),
+        method: pick<PaymentMethod>(["CASH", "CASH", "CARD", "CARD", "TRANSFER"]),
         happenedAt: soldAt,
       });
     }

@@ -45,7 +45,7 @@ export function delta(current: number, previous: number): number | null {
 export type MethodBreakdown = Record<PaymentMethod, number>;
 
 function byMethod(rows: PaymentRec[]): MethodBreakdown {
-  const acc: MethodBreakdown = { CASH: 0, CARD: 0, TERMINAL: 0, TRANSFER: 0 };
+  const acc: MethodBreakdown = { CASH: 0, CARD: 0, TRANSFER: 0 };
   for (const row of rows) acc[row.method] += row.amount;
   return acc;
 }

@@ -307,9 +307,10 @@ async function sahabAll(auth: Record<string, string>, path: string) {
 const money = (value: unknown) => Number(value ?? 0);
 const day = (value: unknown) => (value ? new Date(`${String(value)}T12:00:00`) : new Date());
 
-const METHOD: Record<string, "CASH" | "CARD" | "TERMINAL" | "TRANSFER"> = {
+// «Терминал» в Sahab — та же оплата картой через POS, отдельного способа нет.
+const METHOD: Record<string, "CASH" | "CARD" | "TRANSFER"> = {
   naqd: "CASH",
-  terminal: "TERMINAL",
+  terminal: "CARD",
   karta: "CARD",
   kart: "CARD",
   click: "TRANSFER",

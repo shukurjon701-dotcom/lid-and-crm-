@@ -85,9 +85,15 @@ enum AttendanceStatus {
 
 enum PaymentMethod {
   CASH // Naqd
-  CARD // Kart (перевод на карту)
-  TERMINAL // Terminal (POS)
+  CARD // Kart — карта, она же оплата через POS-терминал
   TRANSFER // Банковский перевод / Click / Payme
+
+  // Устаревшее значение: терминал оказался той же оплатой картой. Новых
+  // записей с ним не появляется, но из схемы его убрать нельзя — Postgres
+  // не удаляет значение enum, пока на него ссылаются старые строки, а
+  // Prisma при чтении неизвестного значения роняет весь запрос. Приложение
+  // приводит его к CARD в src/server/data/source.ts.
+  TERMINAL
 }
 
 enum PaymentDirection {

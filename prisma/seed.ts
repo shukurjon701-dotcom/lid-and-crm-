@@ -382,7 +382,7 @@ async function main() {
           branchId: branch.id,
           studentId: student.id,
           amount,
-          method: pick(["CASH", "CASH", "TERMINAL", "TERMINAL", "TERMINAL", "CARD", "TRANSFER"] as const),
+          method: pick(["CASH", "CASH", "CARD", "CARD", "CARD", "CARD", "TRANSFER"] as const),
           isFirstPayment: tenure < 30,
           receivedById: admin.id,
           paidAt: daysAgo(int(0, daysThisMonth)),

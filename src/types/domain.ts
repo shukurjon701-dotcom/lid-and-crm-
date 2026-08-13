@@ -29,7 +29,12 @@ export type LeadSource =
 
 export type StudentStatus = "ACTIVE" | "FROZEN" | "LEFT" | "GRADUATED";
 export type SaleChannel = "ONLINE" | "OFFLINE";
-export type PaymentMethod = "CASH" | "CARD" | "TERMINAL" | "TRANSFER";
+/**
+ * Терминал — это и есть оплата картой: пластик прикладывают к POS-терминалу
+ * центра. Поэтому отдельного способа «Терминал» нет; старые записи из базы
+ * приводятся к CARD при чтении (`src/server/data/source.ts`).
+ */
+export type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
 export type AuditAction =
@@ -78,7 +83,6 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
 
 export const METHOD_LABELS: Record<PaymentMethod, { ru: string; uz: string }> = {
   CASH: { ru: "Наличные", uz: "Naqd" },
-  TERMINAL: { ru: "Терминал", uz: "Terminal" },
   CARD: { ru: "Карта", uz: "Kart" },
   TRANSFER: { ru: "Перевод", uz: "O'tkazma" },
 };

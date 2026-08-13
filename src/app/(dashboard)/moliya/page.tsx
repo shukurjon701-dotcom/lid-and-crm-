@@ -22,13 +22,11 @@ export default async function MoliyaPage() {
 
   const m = moliyaMetrics(await getDataset());
 
-  const methodSegments = (["CASH", "TERMINAL", "CARD", "TRANSFER"] as const).map(
-    (method, i) => ({
-      label: `${METHOD_LABELS[method].ru} · ${METHOD_LABELS[method].uz}`,
-      value: m.todayByMethod[method],
-      color: ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"][i],
-    })
-  );
+  const methodSegments = (["CASH", "CARD", "TRANSFER"] as const).map((method, i) => ({
+    label: `${METHOD_LABELS[method].ru} · ${METHOD_LABELS[method].uz}`,
+    value: m.todayByMethod[method],
+    color: ["var(--s1)", "var(--s2)", "var(--s3)"][i],
+  }));
 
   return (
     <div className="rise space-y-4">
@@ -112,7 +110,7 @@ export default async function MoliyaPage() {
         <CollapsibleCard
           id="moliya.structure.methods"
           title="Касса сегодня по способам"
-          hint="Terminal / Naqd / Kart"
+          hint="Naqd / Kart / O'tkazma"
         >
           <CardBody>
             <StackedBar segments={methodSegments} format={(v) => formatMoney(v)} />

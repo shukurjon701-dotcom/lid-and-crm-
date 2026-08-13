@@ -2,7 +2,7 @@ import "server-only";
 import { APP } from "@/config/app";
 import { buildDemoDataset } from "@/server/data/demo";
 import type { BookMoveRec, BookRec, Dataset } from "@/server/data/types";
-import type { Role } from "@/types/domain";
+import type { PaymentMethod, Role } from "@/types/domain";
 
 /**
  * Источник данных.
@@ -101,6 +101,15 @@ export async function getDataset(): Promise<Dataset> {
 }
 
 /**
+ * Терминал в центре — это оплата картой через POS, отдельного способа нет.
+ * В базе остались старые строки с `TERMINAL`, поэтому приводим их к `CARD`
+ * на входе: дальше по приложению такого значения уже не встречается,
+ * и касса по способам сходится с общей суммой.
+ */
+const toMethod = (method: string): PaymentMethod =>
+  method === "TERMINAL" ? "CARD" : (method as PaymentMethod);
+
+/**
  * Склад книг. Вынесено в отдельный запрос: если миграция с таблицами книг
  * ещё не применена, пустеет только раздел «Книги», а не весь дашборд.
  */
@@ -139,7 +148,7 @@ async function loadBooks(
         quantity: m.quantity,
         unitPrice: Number(m.unitPrice),
         amount: Number(m.amount),
-        method: m.method,
+        method: toMethod(m.method),
         happenedAt: m.happenedAt,
       })),
     };
@@ -291,7 +300,7 @@ async function loadFromDatabase(): Promise<Dataset> {
       studentId: p.studentId ?? "—",
       studentName: p.student?.fullName ?? "—",
       amount: num(p.amount),
-      method: p.method,
+      method: toMethod(p.method),
       isFirstPayment: p.isFirstPayment,
       receivedByName: p.receivedBy.fullName,
       paidAt: p.paidAt,
@@ -301,7 +310,7 @@ async function loadFromDatabase(): Promise<Dataset> {
       amount: num(e.amount),
       category: e.category.name,
       title: e.title,
-      method: e.method,
+      method: toMethod(e.method),
       authorName: e.createdBy.fullName,
       spentAt: e.spentAt,
     })),

@@ -23,13 +23,11 @@ export default async function ShtabPage() {
 
   const m = shtabMetrics(await getDataset());
 
-  const methodSegments = (["CASH", "TERMINAL", "CARD", "TRANSFER"] as const).map(
-    (method, i) => ({
-      label: `${METHOD_LABELS[method].ru} · ${METHOD_LABELS[method].uz}`,
-      value: m.todayByMethod[method],
-      color: ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"][i],
-    })
-  );
+  const methodSegments = (["CASH", "CARD", "TRANSFER"] as const).map((method, i) => ({
+    label: `${METHOD_LABELS[method].ru} · ${METHOD_LABELS[method].uz}`,
+    value: m.todayByMethod[method],
+    color: ["var(--s1)", "var(--s2)", "var(--s3)"][i],
+  }));
 
   return (
     <div className="rise space-y-4">
@@ -116,7 +114,7 @@ export default async function ShtabPage() {
         <CollapsibleCard
           id="shtab.cash.today"
           title="Касса сегодня"
-          hint="Bugungi tushum: naqd / terminal / kart"
+          hint="Bugungi tushum: naqd / kart / o'tkazma"
         >
           <CardBody>
             <p className="mb-4 text-[28px] leading-none font-semibold tracking-[-0.02em]">
