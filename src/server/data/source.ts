@@ -17,6 +17,26 @@ let demoCache: { key: string; data: Dataset } | null = null;
 let dbProbe: { at: number; ready: boolean } | null = null;
 const PROBE_TTL_MS = 15_000;
 
+/**
+ * Снимок базы живёт 20 секунд.
+ *
+ * Набор читается целиком на каждый переход между разделами — десять запросов
+ * по всем таблицам филиала. Меняются данные только в момент синхронизации,
+ * поэтому между кликами перечитывать их незачем: разделы открываются сразу,
+ * а база получает один запрос вместо запроса на каждый клик каждого
+ * сотрудника. После синхронизации снимок сбрасывается (`invalidateDataset`),
+ * так что кнопка «Обновить» показывает свежие числа немедленно.
+ */
+const DATASET_TTL_MS = 20_000;
+let dbCache: { at: number; data: Dataset } | null = null;
+let loading: Promise<Dataset> | null = null;
+
+/** Забыть снимок: вызывается после синхронизации с Bitrix, Sahab и АТС. */
+export function invalidateDataset() {
+  dbCache = null;
+  demoCache = null;
+}
+
 /** Ленивая загрузка Prisma: без сгенерированного клиента импорт бросает — это нормально. */
 async function getPrisma() {
   const mod = await import("@/lib/prisma");
@@ -77,8 +97,18 @@ export async function findDbUserByLogin(login: string): Promise<{
 
 export async function getDataset(): Promise<Dataset> {
   if (await isDatabaseReady()) {
+    if (dbCache && Date.now() - dbCache.at < DATASET_TTL_MS) return dbCache.data;
+
     try {
-      return await loadFromDatabase();
+      // Пока снимок читается, соседние запросы ждут его же, а не отправляют
+      // в базу ещё по десять запросов: страница и её layout грузятся разом,
+      // да и сотрудников на дашбордах обычно несколько.
+      loading ??= loadFromDatabase().finally(() => {
+        loading = null;
+      });
+      const data = await loading;
+      dbCache = { at: Date.now(), data };
+      return data;
     } catch (error) {
       // БД поднята, но пустая или несовместимая — не роняем интерфейс.
       // Молчать нельзя: подмена демо-набором выглядит как «сайт работает»,

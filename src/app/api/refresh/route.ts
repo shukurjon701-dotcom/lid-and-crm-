@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
+import { invalidateDataset } from "@/server/data/source";
 import { refreshBitrix, refreshSahabFinance } from "@/server/sync/refresh";
 import { isPbxConfigured, refreshPbxCalls } from "@/server/sync/pbx";
 
@@ -36,6 +37,9 @@ async function handle(request: Request) {
     ]);
     // Звонки тянем после лидов: свежий лид нужен, чтобы привязать к нему разговор.
     const pbx = isPbxConfigured() ? await refreshPbxCalls(days) : null;
+
+    // Данные в базе поменялись — снимок, который держат дашборды, устарел.
+    invalidateDataset();
 
     return NextResponse.json({
       ok: true,
