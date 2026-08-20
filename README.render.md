@@ -45,7 +45,6 @@ DATABASE_URL=postgresql://...render...?
 AUTH_SECRET=generate-a-long-random-value
 NEXT_PUBLIC_CURRENCY=UZS
 NEXT_PUBLIC_LOCALE=ru-RU
-USE_MOCK_DATA=false
 ```
 
 ## 4. Initialize database

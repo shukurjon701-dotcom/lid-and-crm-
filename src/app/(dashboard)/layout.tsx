@@ -43,12 +43,10 @@ export default async function DashboardLayout({
         roleLabel: ROLE_LABELS[session.role],
       }}
       nav={nav}
-      isDemo={ds.isDemo}
       lastCallAt={ds.lastCallAt ? ds.lastCallAt.toISOString() : null}
       canRefresh={can(session.role, "dashboard.callcenter")}
       lang={lang}
       labels={{
-        demo: t("header.demo"),
         refresh: t("header.refresh"),
         refreshing: t("header.refreshing"),
         checkIn: t("header.checkIn"),

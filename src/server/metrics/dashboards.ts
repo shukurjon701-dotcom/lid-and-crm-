@@ -3,8 +3,7 @@ import type { Dataset, ExpenseRec, PaymentRec, StudentRec } from "@/server/data/
 import type { PaymentMethod } from "@/types/domain";
 
 /**
- * Все метрики дашбордов. Чистые функции над Dataset — не зависят от того,
- * пришли данные из Postgres или из демо-набора.
+ * Все метрики дашбордов. Чистые функции над Dataset.
  */
 
 // ------------------------------------------------------------------ периоды

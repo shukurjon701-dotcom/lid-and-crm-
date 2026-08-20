@@ -16,7 +16,6 @@ import type { NavSectionView } from "@/config/nav";
 import type { Lang } from "@/lib/i18n";
 
 export type ShellLabels = {
-  demo: string;
   refresh: string;
   refreshing: string;
   checkIn: string;
@@ -29,7 +28,6 @@ export type ShellLabels = {
 export type AppShellProps = {
   user: { fullName: string; roleLabel: string; login: string };
   nav: NavSectionView[];
-  isDemo: boolean;
   lastCallAt: string | null;
   canRefresh: boolean;
   lang: Lang;
@@ -40,7 +38,6 @@ export type AppShellProps = {
 export function AppShell({
   user,
   nav,
-  isDemo,
   lastCallAt,
   canRefresh,
   lang,
@@ -166,11 +163,6 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-2.5">
-            {isDemo && (
-              <span className="hidden rounded-full bg-warm-bg px-3 py-1.5 text-[11px] font-bold text-warm sm:inline">
-                {labels.demo}
-              </span>
-            )}
             <span className="hidden items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-bold sm:inline-flex">
               <Building2 className="size-3.5 text-ink-3" strokeWidth={2.2} />
               {APP.branch.name}

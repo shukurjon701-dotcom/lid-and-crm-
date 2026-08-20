@@ -31,8 +31,6 @@ services:
         value: UZS
       - key: NEXT_PUBLIC_LOCALE
         value: ru-RU
-      - key: USE_MOCK_DATA
-        value: "false"
       # Виртуальная АТС onlinePBX — источник звонков call-центра
       - key: PBX_DOMAIN
         sync: false

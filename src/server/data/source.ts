@@ -1,19 +1,33 @@
 import "server-only";
 import { APP } from "@/config/app";
-import { buildDemoDataset } from "@/server/data/demo";
 import type { BookMoveRec, BookRec, Dataset } from "@/server/data/types";
 import type { PaymentMethod, Role } from "@/types/domain";
 
 /**
- * Источник данных.
+ * Источник данных — только Postgres.
  *
- * Есть Postgres  → читаем из него через Prisma.
- * Нет Postgres   → детерминированный демо-набор, приложение всё равно работает.
+ * Подставного набора нет и быть не должно: выдуманные цифры на дашборде
+ * неотличимы от настоящих, по ним принимают решения, и обнаруживается подмена
+ * в лучшем случае через неделю. Поэтому если база недоступна или её схема
+ * устарела, приложение показывает ошибку с причиной, а не «работающий» экран.
  *
- * Метрики (src/server/metrics) не знают, откуда пришёл Dataset.
+ * Метрики (src/server/metrics) получают Dataset и не знают, откуда он.
  */
 
-let demoCache: { key: string; data: Dataset } | null = null;
+/** База недоступна. Ловится в src/app/error.tsx и объясняется человеку. */
+export class DatabaseUnavailableError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(`Нет данных из базы: ${reason}`);
+    this.name = "DatabaseUnavailableError";
+    this.reason = reason;
+  }
+}
+
+const describe = (error: unknown, lines = 1) =>
+  error instanceof Error ? error.message.split("\n").slice(0, lines).join(" ").trim() : String(error);
+
 let dbProbe: { at: number; ready: boolean } | null = null;
 const PROBE_TTL_MS = 15_000;
 
@@ -34,7 +48,6 @@ let loading: Promise<Dataset> | null = null;
 /** Забыть снимок: вызывается после синхронизации с Bitrix, Sahab и АТС. */
 export function invalidateDataset() {
   dbCache = null;
-  demoCache = null;
 }
 
 /** Ленивая загрузка Prisma: без сгенерированного клиента импорт бросает — это нормально. */
@@ -43,9 +56,13 @@ async function getPrisma() {
   return mod.prisma;
 }
 
+/**
+ * Жива ли база. Нужна входу: пока БД не отвечает, пускаем по локальным
+ * учётным записям. На данные дашборда это не влияет — их без базы нет.
+ */
 export async function isDatabaseReady(): Promise<boolean> {
   if (!process.env.DATABASE_URL) {
-    warnOnce("DATABASE_URL не задана — показываю демо-данные");
+    warnOnce("DATABASE_URL не задана");
     return false;
   }
   if (dbProbe && Date.now() - dbProbe.at < PROBE_TTL_MS) return dbProbe.ready;
@@ -56,13 +73,8 @@ export async function isDatabaseReady(): Promise<boolean> {
     await prisma.$queryRaw`SELECT 1`;
     ready = true;
   } catch (error) {
-    // Молчаливый откат на демо мешает понять, что случилось на сервере,
-    // поэтому причину пишем в лог — она видна в Render → Logs.
-    warnOnce(
-      `Не удалось подключиться к базе, показываю демо-данные: ${
-        error instanceof Error ? error.message.split("\n")[0] : String(error)
-      }`
-    );
+    // Причину пишем в лог — она видна в Render → Logs.
+    warnOnce(`Не удалось подключиться к базе: ${describe(error)}`);
     ready = false;
   }
   dbProbe = { at: Date.now(), ready };
@@ -96,38 +108,29 @@ export async function findDbUserByLogin(login: string): Promise<{
 }
 
 export async function getDataset(): Promise<Dataset> {
-  if (await isDatabaseReady()) {
-    if (dbCache && Date.now() - dbCache.at < DATASET_TTL_MS) return dbCache.data;
-
-    try {
-      // Пока снимок читается, соседние запросы ждут его же, а не отправляют
-      // в базу ещё по десять запросов: страница и её layout грузятся разом,
-      // да и сотрудников на дашбордах обычно несколько.
-      loading ??= loadFromDatabase().finally(() => {
-        loading = null;
-      });
-      const data = await loading;
-      dbCache = { at: Date.now(), data };
-      return data;
-    } catch (error) {
-      // БД поднята, но пустая или несовместимая — не роняем интерфейс.
-      // Молчать нельзя: подмена демо-набором выглядит как «сайт работает»,
-      // и причину потом не найти. Частый случай — на сервере не применена
-      // схема (`prisma db push`), и запрос падает на колонке, которой ещё
-      // нет в базе.
-      warnOnce(
-        `База отвечает, но прочитать её не удалось, показываю демо-данные: ${
-          error instanceof Error ? error.message.split("\n").slice(0, 3).join(" ") : String(error)
-        }`
-      );
-    }
+  if (!process.env.DATABASE_URL) {
+    throw new DatabaseUnavailableError("переменная DATABASE_URL не задана");
   }
 
-  const key = new Date().toDateString();
-  if (!demoCache || demoCache.key !== key) {
-    demoCache = { key, data: buildDemoDataset() };
+  if (dbCache && Date.now() - dbCache.at < DATASET_TTL_MS) return dbCache.data;
+
+  try {
+    // Пока снимок читается, соседние запросы ждут его же, а не отправляют
+    // в базу ещё по десять запросов: страница и её layout грузятся разом,
+    // да и сотрудников на дашбордах обычно несколько.
+    loading ??= loadFromDatabase().finally(() => {
+      loading = null;
+    });
+    const data = await loading;
+    dbCache = { at: Date.now(), data };
+    return data;
+  } catch (error) {
+    // Частая причина — на сервере не применена схема (`prisma db push`),
+    // и запрос падает на колонке, которой ещё нет в базе.
+    const reason = describe(error, 3);
+    warnOnce(`Прочитать базу не удалось: ${reason}`);
+    throw new DatabaseUnavailableError(reason);
   }
-  return demoCache.data;
 }
 
 /**
@@ -262,7 +265,6 @@ async function loadFromDatabase(): Promise<Dataset> {
   const { books, bookMoves } = await loadBooks(prisma);
 
   return {
-    isDemo: false,
     generatedAt: new Date(),
     lastCallAt: calls[0]?.calledAt ?? null,
     students: students.map((s) => {

@@ -39,7 +39,6 @@ export const DICT = {
   "nav.audit": { ru: "История изменений", uz: "O'zgarishlar tarixi" },
 
   // --------------------------------------------------------------- шапка
-  "header.demo": { ru: "Демо-данные", uz: "Namuna ma'lumotlar" },
   "header.refresh": { ru: "Обновить", uz: "Yangilash" },
   "header.refreshing": { ru: "Обновляю…", uz: "Yangilanmoqda…" },
   "header.checkIn": { ru: "Пришёл", uz: "Keldim" },
